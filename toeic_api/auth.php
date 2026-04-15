@@ -21,7 +21,6 @@ if ($action === 'register') {
         exit();
     }
 
-    // Cek apakah email sudah terdaftar
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
     if ($stmt->fetch()) {
@@ -29,7 +28,6 @@ if ($action === 'register') {
         exit();
     }
 
-    // Simpan user baru
     $hashed = password_hash($password, PASSWORD_BCRYPT);
     $stmt = $pdo->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
     $stmt->execute([$name, $email, $hashed]);
@@ -65,9 +63,10 @@ elseif ($action === 'login') {
         "status"  => "success",
         "message" => "Login berhasil",
         "user"    => [
-            "id"    => $user['id'],
-            "name"  => $user['name'],
-            "email" => $user['email']
+            "id"          => $user['id'],
+            "name"        => $user['name'],
+            "email"       => $user['email'],
+            "skill_level" => $user['skill_level']
         ]
     ]);
 }

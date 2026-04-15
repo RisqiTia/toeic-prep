@@ -6,7 +6,8 @@ $part_id = $_GET['part_id'] ?? null;
 
 // ─── AMBIL SEMUA PART (untuk daftar menu materi) ─────────────
 if ($action === 'parts') {
-    $stmt = $pdo->query("SELECT * FROM toeic_parts ORDER BY id");
+    // Sekarang toeic_parts punya kolom 'type' (listening/reading)
+    $stmt = $pdo->query("SELECT id, name, type FROM toeic_parts ORDER BY id");
     $parts = $stmt->fetchAll();
     echo json_encode(["status" => "success", "data" => $parts]);
 }
@@ -14,7 +15,7 @@ if ($action === 'parts') {
 // ─── AMBIL MATERI BERDASARKAN PART ───────────────────────────
 elseif ($action === 'by_part' && $part_id) {
     $stmt = $pdo->prepare("
-        SELECT m.*, tp.name AS part_name
+        SELECT m.*, tp.name AS part_name, tp.type AS part_type
         FROM materials m
         JOIN toeic_parts tp ON m.part_id = tp.id
         WHERE m.part_id = ?
@@ -35,7 +36,7 @@ elseif ($action === 'detail') {
     }
 
     $stmt = $pdo->prepare("
-        SELECT m.*, tp.name AS part_name
+        SELECT m.*, tp.name AS part_name, tp.type AS part_type
         FROM materials m
         JOIN toeic_parts tp ON m.part_id = tp.id
         WHERE m.id = ?
