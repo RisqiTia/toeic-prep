@@ -34,7 +34,29 @@ if ($action === 'register') {
 
     echo json_encode([
         "status"  => "success",
-        "message" => "Registrasi berhasil! Silakan login."
+        "message" => "Registrasi berhasil!"
+    ]);
+}
+
+// ─── UPDATE SKILL LEVEL (dipanggil setelah halaman ukur kemampuan) ──
+elseif ($action === 'update_skill') {
+    $data = json_decode(file_get_contents("php://input"), true);
+
+    $email      = trim($data['email']       ?? '');
+    $skillLevel = trim($data['skill_level'] ?? '');
+
+    $allowed = ['beginner', 'intermediate', 'advanced'];
+    if (!in_array($skillLevel, $allowed)) {
+        echo json_encode(["status" => "error", "message" => "Tingkat kemampuan tidak valid"]);
+        exit();
+    }
+
+    $stmt = $pdo->prepare("UPDATE users SET skill_level = ? WHERE email = ?");
+    $stmt->execute([$skillLevel, $email]);
+
+    echo json_encode([
+        "status"  => "success",
+        "message" => "Tingkat kemampuan berhasil disimpan"
     ]);
 }
 
