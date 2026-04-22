@@ -21,11 +21,11 @@ class MenuCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF2563EB),
+          color: const Color(0xFF2563EB), // Biru sesuai design
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+              color: const Color(0xFF2563EB).withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -37,7 +37,7 @@ class MenuCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: Colors.white, size: 28),
@@ -61,7 +61,7 @@ class MenuCard extends StatelessWidget {
                     description,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withOpacity(0.9),
                       height: 1.4,
                     ),
                   ),
@@ -72,7 +72,7 @@ class MenuCard extends StatelessWidget {
             // Arrow Icon
             Icon(
               Icons.arrow_forward_ios,
-              color: Colors.white.withValues(alpha: 0.7),
+              color: Colors.white.withOpacity(0.7),
               size: 16,
             ),
           ],

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:toeic_prep/widgets/widgets.dart';
-import 'materials.dart';
 
 class BerandaScreen extends StatefulWidget {
   final String userName;
@@ -73,12 +72,7 @@ class _BerandaScreenState extends State<BerandaScreen> {
               description:
                   'Tingkatkan kemampuan Listening\ndan Reading secara bertahap.',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const MaterialsScreen(),
-                  ),
-                );
+                // Navigate ke Materi TOEIC
               },
             ),
             const SizedBox(height: 16),
