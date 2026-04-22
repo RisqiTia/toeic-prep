@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 
-class MenuCard extends StatelessWidget {
-  final IconData icon;
+class MateriCard extends StatelessWidget {
+  final int partNumber;
   final String title;
   final String description;
+  final IconData icon;
   final VoidCallback onTap;
 
-  const MenuCard({
+  const MateriCard({
     super.key,
-    required this.icon,
+    required this.partNumber,
     required this.title,
     required this.description,
+    required this.icon,
     required this.onTap,
   });
 
@@ -19,28 +21,30 @@ class MenuCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF2563EB),
+          color: Colors.grey[100]!.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[300]!, width: 1),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+              color: Colors.grey[400]!.withValues(alpha: 0.15),
               blurRadius: 8,
-              offset: const Offset(0, 4),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
           children: [
-            // Icon Container
+            // Icon Container dengan background biru
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: const Color(0xFF5BA3E8),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: Colors.white, size: 28),
+              child: Icon(icon, color: Colors.white, size: 32),
             ),
             const SizedBox(width: 16),
             // Text Content
@@ -51,9 +55,9 @@ class MenuCard extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -61,20 +65,18 @@ class MenuCard extends StatelessWidget {
                     description,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.grey[600],
                       height: 1.4,
                     ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
             // Arrow Icon
-            Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.white.withValues(alpha: 0.7),
-              size: 16,
-            ),
+            Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
           ],
         ),
       ),
