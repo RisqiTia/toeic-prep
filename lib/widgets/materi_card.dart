@@ -24,12 +24,12 @@ class MateriCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[100]!.withValues(alpha: 0.1),
+          color: Colors.grey[400]!.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey[300]!, width: 1),
+          border: Border.all(color: Colors.grey[400]!, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey[400]!.withValues(alpha: 0.15),
+              color: Colors.grey[200]!.withValues(alpha: 0.15),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

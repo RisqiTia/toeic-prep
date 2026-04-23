@@ -32,14 +32,18 @@ class MaterialsScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   // Title
-                  const Text(
-                    'Materi TOEIC',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  Expanded(
+                    child: const Text(
+                      'Materi TOEIC',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 24),
                 ],
               ),
             ),
