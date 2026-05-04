@@ -23,6 +23,8 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
   bool _isLoadingAudio = false;
+  Map<String, String> _jawabanMulti = {};
+  Map<String, String> _pembahasanMulti = {};
 
   static const String _mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
 
@@ -75,7 +77,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
     }
   }
 
-  // ── PARSE & BUILD KONTEN ────────────────────────────────────
+  // ── CONTENT WITH MEDIA ──────────────────────────────────────
 
   List<Widget> _buildContentWithMedia(MaterialDetail material) {
     final fullText = material.description;
@@ -186,45 +188,94 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
     ];
   }
 
+  // ── FORMATTED CONTENT ───────────────────────────────────────
+
   Widget _buildFormattedContent(String text) {
-    final List<Widget> widgets = [];
     final lines = text.split('\n');
-
+    final Map<String, List<String>> sections = {};
+    final List<String> sectionOrder = [];
     String currentSection = '';
-    List<String> sectionBuffer = [];
+    List<String> buffer = [];
 
-    // Cari jawaban benar dari teks Pembahasan dulu
-    String jawabanBenar = '';
-    bool inPembahasan = false;
     for (final line in lines) {
       final trimmed = line.trim();
-      if (trimmed == 'Pembahasan:') {
-        inPembahasan = true;
-        continue;
+      if ([
+        'Apa yang diuji:',
+        'Contoh Soal:',
+        'Pembahasan:',
+        'Strategi:',
+        'Tips:',
+      ].contains(trimmed)) {
+        if (buffer.isNotEmpty || currentSection.isNotEmpty) {
+          sections[currentSection] = List.from(buffer);
+          if (!sectionOrder.contains(currentSection)) {
+            sectionOrder.add(currentSection);
+          }
+        }
+        buffer.clear();
+        currentSection = trimmed;
+      } else {
+        buffer.add(line);
       }
-      if (inPembahasan && trimmed.startsWith('Jawaban:')) {
-        jawabanBenar = trimmed.replaceFirst('Jawaban:', '').trim();
-        break;
+    }
+    if (buffer.isNotEmpty || currentSection.isNotEmpty) {
+      sections[currentSection] = List.from(buffer);
+      if (!sectionOrder.contains(currentSection)) {
+        sectionOrder.add(currentSection);
       }
     }
 
-    void flushBuffer() {
-      if (sectionBuffer.isEmpty) return;
+    // Parse jawaban dulu sebelum render
+    final pembahasanLines = sections['Pembahasan:'] ?? [];
+    String jawabanBenar = '';
+    _jawabanMulti = {};
+    _pembahasanMulti = {};
 
-      if (currentSection == 'Apa yang diuji:') {
-        widgets.add(_buildApaYangDiujiCard(sectionBuffer));
-      } else if (currentSection == 'Contoh Soal:') {
-        widgets.add(_buildContohSoalCard(sectionBuffer, jawabanBenar));
-      } else if (currentSection == 'Pembahasan:') {
-        widgets.add(_buildPembahasanCard(sectionBuffer));
-      } else if (currentSection == 'Strategi:') {
-        widgets.add(
-          _buildPoinCard(sectionBuffer, 'Strategi:', isStrategi: true),
-        );
-      } else if (currentSection == 'Tips:') {
-        widgets.add(_buildPoinCard(sectionBuffer, 'Tips:', isStrategi: false));
-      } else {
-        for (final line in sectionBuffer) {
+    // Parse multi pembahasan dulu untuk isi _pembahasanMulti
+    List<Map<String, dynamic>> pembahasanItems = [];
+    Map<String, dynamic>? currentPembahasan;
+    for (final line in pembahasanLines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      final multiMatch = RegExp(
+        r'^Jawaban\s+(\d+):\s*(.+)$',
+      ).firstMatch(trimmed);
+      if (multiMatch != null) {
+        if (currentPembahasan != null) pembahasanItems.add(currentPembahasan);
+        currentPembahasan = {
+          'number': multiMatch.group(1)!,
+          'jawaban': multiMatch.group(2)!.trim(),
+          'penjelasan': <String>[],
+        };
+      } else if (trimmed.startsWith('Jawaban:') &&
+          !RegExp(r'^Jawaban\s+\d+:').hasMatch(trimmed)) {
+        jawabanBenar = trimmed.replaceFirst('Jawaban:', '').trim();
+      } else if (currentPembahasan != null) {
+        (currentPembahasan['penjelasan'] as List<String>).add(trimmed);
+      }
+    }
+    if (currentPembahasan != null) pembahasanItems.add(currentPembahasan);
+
+    if (pembahasanItems.isNotEmpty) {
+      _jawabanMulti = {
+        for (final item in pembahasanItems)
+          (item['number'] as String): (item['jawaban'] as String),
+      };
+      _pembahasanMulti = {
+        for (final item in pembahasanItems)
+          (item['number'] as String): (item['penjelasan'] as List<String>)
+              .join('\n')
+              .trim(),
+      };
+    }
+
+    // Render
+    final List<Widget> widgets = [];
+    for (final section in sectionOrder) {
+      final sectionLines = sections[section] ?? [];
+
+      if (section == '') {
+        for (final line in sectionLines) {
           final trimmed = line.trim();
           if (trimmed.isNotEmpty) {
             widgets.add(
@@ -240,24 +291,25 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
             widgets.add(const SizedBox(height: 4));
           }
         }
+      } else if (section == 'Apa yang diuji:') {
+        widgets.add(_buildApaYangDiujiCard(sectionLines));
+      } else if (section == 'Contoh Soal:') {
+        widgets.add(_buildContohSoalCard(sectionLines, jawabanBenar));
+      } else if (section == 'Pembahasan:') {
+        if (pembahasanItems.isEmpty) {
+          widgets.add(_buildSinglePembahasanCard(sectionLines, jawabanBenar));
+        }
+        // Jika multi, pembahasan sudah ditampilkan per soal — skip
+      } else if (section == 'Strategi:') {
+        widgets.add(
+          _buildPoinCard(sectionLines, 'Strategi:', isStrategi: true),
+        );
+      } else if (section == 'Tips:') {
+        widgets.add(_buildPoinCard(sectionLines, 'Tips:', isStrategi: false));
       }
-      sectionBuffer.clear();
-    }
 
-    for (final line in lines) {
-      final trimmed = line.trim();
-      if (trimmed == 'Apa yang diuji:' ||
-          trimmed == 'Contoh Soal:' ||
-          trimmed == 'Pembahasan:' ||
-          trimmed == 'Strategi:' ||
-          trimmed == 'Tips:') {
-        flushBuffer();
-        currentSection = trimmed;
-      } else {
-        sectionBuffer.add(line);
-      }
+      widgets.add(const SizedBox(height: 12));
     }
-    flushBuffer();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,9 +317,85 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
     );
   }
 
-  // ── CARD: CONTOH SOAL (dengan highlight jawaban benar) ──────
+  // ── CARD: APA YANG DIUJI ────────────────────────────────────
+
+  Widget _buildApaYangDiujiCard(List<String> lines) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 225, 235, 244),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[400]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Apa yang diuji:',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...lines.map((line) => line.trim()).where((l) => l.isNotEmpty).map((
+            line,
+          ) {
+            if (line.startsWith('- ')) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '• ',
+                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                    Expanded(
+                      child: Text(
+                        line.substring(2).trim(),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black87,
+                          height: 1.8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                line,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                  height: 1.8,
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ── CARD: CONTOH SOAL ───────────────────────────────────────
 
   Widget _buildContohSoalCard(List<String> lines, String jawabanBenar) {
+    final isMultiQuestion = lines.any(
+      (l) => RegExp(r'^Question\s+\d+:').hasMatch(l.trim()),
+    );
+
+    if (isMultiQuestion) {
+      return _buildMultiQuestionCard(lines);
+    }
+
     List<String> soalLines = [];
     List<Map<String, String>> choices = [];
 
@@ -305,8 +433,6 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
             ),
           ),
           const SizedBox(height: 8),
-
-          // Teks soal
           ...soalLines.map(
             (line) => Padding(
               padding: const EdgeInsets.only(bottom: 4),
@@ -320,69 +446,294 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 12),
-
-          // Pilihan A/B/C/D
-          ...choices.map((choice) {
-            final isBenar = choice['key'] == jawabanBenar;
-            return Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: isBenar ? Colors.blue[50] : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isBenar ? const Color(0xFF2563EB) : Colors.grey[300]!,
-                  width: isBenar ? 2 : 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isBenar
-                          ? const Color(0xFF2563EB)
-                          : Colors.grey[200],
-                    ),
-                    child: Center(
-                      child: Text(
-                        choice['key']!,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: isBenar ? Colors.white : Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      choice['text']!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.black87,
-                        fontWeight: isBenar
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          ..._buildChoices(choices, jawabanBenar),
         ],
       ),
     );
   }
 
-  // ── CARD: STRATEGI & TIPS (abu, teks hitam normal) ──────────
+  // ── MULTI QUESTION (Part 3 & 4) ─────────────────────────────
+
+  Widget _buildMultiQuestionCard(List<String> lines) {
+    List<String> percakapanLines = [];
+    List<Map<String, dynamic>> questions = [];
+    Map<String, dynamic>? currentQuestion;
+
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+
+      final qMatch = RegExp(r'^(Question\s+\d+):$').firstMatch(trimmed);
+      if (qMatch != null) {
+        if (currentQuestion != null) questions.add(currentQuestion);
+        currentQuestion = {
+          'title': qMatch.group(1)!,
+          'questionText': '',
+          'choices': <Map<String, String>>[],
+        };
+        continue;
+      }
+
+      if (currentQuestion == null) {
+        percakapanLines.add(trimmed);
+      } else {
+        final choiceMatch = RegExp(r'^([A-D])\.\s+(.+)$').firstMatch(trimmed);
+        if (choiceMatch != null) {
+          (currentQuestion['choices'] as List).add({
+            'key': choiceMatch.group(1)!,
+            'text': choiceMatch.group(2)!,
+          });
+        } else {
+          final existing = currentQuestion['questionText'] as String;
+          currentQuestion['questionText'] = existing.isEmpty
+              ? trimmed
+              : '$existing\n$trimmed';
+        }
+      }
+    }
+    if (currentQuestion != null) questions.add(currentQuestion);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Contoh Soal:',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Teks percakapan
+        if (percakapanLines.isNotEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: percakapanLines
+                  .map(
+                    (line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        line,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black87,
+                          height: 1.6,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+
+        // Tiap question + pembahasan langsung di bawahnya
+        ...questions.map((q) {
+          final qNumber =
+              RegExp(r'\d+').firstMatch(q['title'] as String)?.group(0) ?? '';
+          final jawabanBenar = _jawabanMulti[qNumber] ?? '';
+          final penjelasan = _pembahasanMulti[qNumber] ?? '';
+          final choices = (q['choices'] as List).cast<Map<String, String>>();
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Card soal
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${q['title']}:',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      q['questionText'] as String,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black87,
+                        height: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ..._buildChoices(choices, jawabanBenar),
+                  ],
+                ),
+              ),
+
+              // Pembahasan langsung di bawah soal
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 255, 245, 200),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber[300]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '💡 Pembahasan Question $qNumber (Jawaban: $jawabanBenar)',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    if (penjelasan.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        penjelasan,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black87,
+                          height: 1.6,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  // ── HELPER: BUILD CHOICES ───────────────────────────────────
+
+  List<Widget> _buildChoices(
+    List<Map<String, String>> choices,
+    String jawabanBenar,
+  ) {
+    return choices.map((choice) {
+      final isBenar = choice['key'] == jawabanBenar;
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isBenar ? Colors.blue[50] : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isBenar ? const Color(0xFF2563EB) : Colors.grey[300]!,
+            width: isBenar ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isBenar ? const Color(0xFF2563EB) : Colors.grey[200],
+              ),
+              child: Center(
+                child: Text(
+                  choice['key']!,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: isBenar ? Colors.white : Colors.black,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                choice['text']!,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.black87,
+                  fontWeight: isBenar ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  // ── CARD: PEMBAHASAN SINGLE ─────────────────────────────────
+
+  Widget _buildSinglePembahasanCard(List<String> lines, String jawabanBenar) {
+    List<String> isi = [];
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith('Jawaban:')) continue;
+      isi.add(trimmed);
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 255, 245, 200),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.amber[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '💡 Pembahasan (Jawaban: $jawabanBenar)',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...isi.map(
+            (line) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                line,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black87,
+                  height: 1.6,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── CARD: STRATEGI & TIPS ───────────────────────────────────
 
   Widget _buildPoinCard(
     List<String> lines,
@@ -410,7 +761,6 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
         ...items.asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
-
           String poinTitle = item;
           String poinDesc = '';
           if (item.contains(':')) {
@@ -430,14 +780,13 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Nomor bulat untuk strategi, garis abu untuk tips
                 if (isStrategi)
                   Container(
                     width: 28,
                     height: 28,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF2563EB),
+                      color: Color(0xFF2563EB),
                     ),
                     child: Center(
                       child: Text(
@@ -459,9 +808,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-
                 const SizedBox(width: 10),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,123 +841,6 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
         }),
         const SizedBox(height: 16),
       ],
-    );
-  }
-
-  Widget _buildApaYangDiujiCard(List<String> lines) {
-    final contentWidgets = lines
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
-        .map((line) {
-          if (line.startsWith('- ')) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '• ',
-                    style: TextStyle(fontSize: 14, color: Colors.black87),
-                  ),
-                  Expanded(
-                    child: Text(
-                      line.substring(2).trim(),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black87,
-                        height: 1.8,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              line,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-                height: 1.8,
-              ),
-            ),
-          );
-        })
-        .toList();
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 225, 235, 244),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[400]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Apa yang diuji:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...contentWidgets,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPembahasanCard(List<String> lines) {
-    final contentWidgets = lines
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty && !line.startsWith('Jawaban:'))
-        .map(
-          (line) => Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              line,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-                height: 1.8,
-              ),
-            ),
-          ),
-        )
-        .toList();
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 255, 177, 32),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Pembahasan:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...contentWidgets,
-        ],
-      ),
     );
   }
 
@@ -654,17 +884,13 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
 
           return Column(
             children: [
-              // Header
               Header(title: widget.partName),
-
-              // Konten scrollable
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Judul materi
                       Text(
                         material.title,
                         style: const TextStyle(
@@ -674,10 +900,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Konten dengan gambar & audio disisipkan
                       ..._buildContentWithMedia(material),
-
                       const SizedBox(height: 24),
                     ],
                   ),
