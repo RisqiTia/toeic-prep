@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'screens/home/beranda.dart';
 import 'services/user_session.dart';
 import 'screens/auth/login_screen.dart';
-// import 'screens/home/home_screen.dart'; // ← uncomment setelah home dibuat
+import 'screens/home/beranda.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -133,7 +133,7 @@ class _SkillLevelScreenState extends State<SkillLevelScreen> {
               Expanded(
                 child: ListView.separated(
                   itemCount    : _levels.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder  : (_, i) {
                     final level    = _levels[i];
                     final selected = _selectedLevel == level['value'];
