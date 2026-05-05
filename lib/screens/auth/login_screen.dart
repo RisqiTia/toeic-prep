@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/user_session.dart';
 import 'register_screen.dart';
-// import '../home/home_screen.dart'; // ← uncomment setelah home dibuat
+import '../../screens/home/beranda.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,20 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // Navigasi ke Home
-      // Navigator.pushAndRemoveUntil(
-      //   context,
-      //   MaterialPageRoute(builder: (_) => const HomeScreen()),
-      //   (_) => false,
-      // );
-
       // ── Sementara (sebelum Home dibuat): tampilkan snackbar ─
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content        : Text('Selamat datang, ${user['name']}! 👋'),
-          backgroundColor: const Color(0xFF2563EB),
-          behavior       : SnackBarBehavior.floating,
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BerandaScreen(userName: user['name']),
         ),
+        (_) => false,
       );
     } else {
       setState(() => _errorMessage = result['message'] ?? 'Email atau password salah');
