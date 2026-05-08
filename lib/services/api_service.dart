@@ -132,4 +132,20 @@ class ApiService {
       return {'status': 'error', 'message': 'Gagal mengambil riwayat skor'};
     }
   }
+
+  static Future<Map<String, dynamic>> updateSkillLevel({
+    required String email,
+    required String skillLevel,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/auth.php?action=update_skill'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'skill_level': skillLevel}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {'status': 'error', 'message': 'Tidak bisa terhubung ke server.'};
+    }
+  }
 }

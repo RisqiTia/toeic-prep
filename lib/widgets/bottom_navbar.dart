@@ -37,31 +37,37 @@ class CustomBottomNavBar extends StatelessWidget {
     return Expanded(
       child: GestureDetector(
         onTap: () => onTap(index),
+        behavior: HitTestBehavior.opaque,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ICON + background bulat saat aktif
-            Container(
-              padding: const EdgeInsets.all(8),
+            // Icon — bulat biru saat aktif, transparan saat tidak
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isActive
-                    ? const Color(0xFFDBEAFE) // biru muda
-                    : Colors.transparent,
+                color: isActive ? const Color(0xFFDBEAFE) : Colors.transparent,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
-                color: isActive ? const Color(0xFF2563EB) : Colors.grey,
+                size: 22,
+                color: isActive
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFF9CA3AF),
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              label,
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                color: isActive ? const Color(0xFF2563EB) : Colors.grey,
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFF9CA3AF),
               ),
+              child: Text(label),
             ),
           ],
         ),
