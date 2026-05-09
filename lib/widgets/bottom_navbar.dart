@@ -12,6 +12,23 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(255, 241, 245, 249), // kotak putih dalam
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(
+          children: [
+            _buildNavItem(Icons.home, 'Beranda', 0),
+            _buildNavItem(Icons.access_time, 'Riwayat', 1),
+            _buildNavItem(Icons.person, 'Profil', 2),
+          ],
+        ),
+=======
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -32,6 +49,7 @@ class CustomBottomNavBar extends StatelessWidget {
           _buildNavItem(Icons.access_time_rounded, 'Riwayat', 1),
           _buildNavItem(Icons.person_outline_rounded, 'Profil', 2),
         ],
+>>>>>>> 59508cf8d76c3c588521492bf01512ca0ac9ce1a
       ),
     );
   }
@@ -51,9 +69,7 @@ class CustomBottomNavBar extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isActive
-                    ? const Color(0xFFDBEAFE)
-                    : Colors.transparent,
+                color: isActive ? const Color(0xFFDBEAFE) : Colors.transparent,
                 shape: BoxShape.circle,
               ),
               child: Icon(
