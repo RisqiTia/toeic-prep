@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:toeic_prep/screens/home/materials.dart';
 import 'package:toeic_prep/widgets/widgets.dart';
+import 'package:toeic_prep/screens/home/latihan.dart';
 
 class BerandaScreen extends StatefulWidget {
   final String userName;
@@ -88,7 +89,12 @@ class _BerandaScreenState extends State<BerandaScreen> {
               description:
                   'Latihan soal TOEIC per part untuk\nmengasah Listening dan Reading.',
               onTap: () {
-                // Navigate ke Latihan TOEIC
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LatihanScreen(),
+                  ),
+                );
               },
             ),
             const SizedBox(height: 16),
