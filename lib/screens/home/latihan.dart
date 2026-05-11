@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:toeic_prep/models/latihan_model.dart';
 import 'package:toeic_prep/widgets/materi_card.dart';
 import 'package:toeic_prep/widgets/header.dart';
-import 'package:toeic_prep/screens/home/latihan_soal.dart';
 
 class LatihanScreen extends StatelessWidget {
   const LatihanScreen({super.key});
@@ -28,17 +27,13 @@ class LatihanScreen extends StatelessWidget {
                   description: latihan.description,
                   icon: latihan.icon,
                   onTap: () {
-                    // nanti arahkan ke halaman soal latihan
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => LatihanSoal(
-                          partId: latihan.partNumber,
-                          partName: latihan.title,
-                          userId: 1, // Ganti dengan user ID yang sesuai
-                        ),
-                      ),
-                    );
+                    // TODO: nanti arahkan ke halaman soal latihan
+                    // Navigator.push(context, MaterialPageRoute(
+                    //   builder: (context) => LatihanSoalScreen(
+                    //     partId: latihan.partNumber,
+                    //     partName: latihan.title,
+                    //   ),
+                    // ));
                   },
                 );
               },
