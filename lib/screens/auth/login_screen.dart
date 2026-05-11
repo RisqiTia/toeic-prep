@@ -16,10 +16,29 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passController  = TextEditingController();
 
-  bool _obscurePass   = true;
-  bool _rememberMe    = false;
-  bool _isLoading     = false;
+  bool _obscurePass  = true;
+  bool _rememberMe   = false;
+  bool _isLoading    = false;
   String? _errorMessage;
+
+  // ── Auto-fill saat halaman pertama kali dibuka ──────────────
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final saved = await UserSession.getSavedCredentials();
+    print('📦 Kredensial tersimpan: $saved'); // ← tambah ini
+    if (saved != null) {
+      setState(() {
+        _emailController.text = saved['email']    ?? '';
+        _passController.text  = saved['password'] ?? '';
+        _rememberMe           = true; // centang otomatis
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -53,14 +72,28 @@ class _LoginScreenState extends State<LoginScreen> {
         rememberMe: _rememberMe,
       );
 
-      if (!mounted) return;
+      // Simpan atau hapus kredensial berdasarkan checkbox Ingat Saya
+      if (_rememberMe) {
+        await UserSession.saveCredentials(
+          _emailController.text.trim(),
+          _passController.text,
+        );
+        print('✅ Kredensial disimpan: ${_emailController.text.trim()}'); // ← tambah ini
+      } else {
+        await UserSession.clearCredentials();
+        print('❌ Kredensial dihapus'); // ← tambah ini
+      }
 
-      // ── Sementara (sebelum Home dibuat): tampilkan snackbar ─
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => BerandaScreen(userName: user['name']),
+          builder: (_) => BerandaScreen(
+            userId    : user['id'],
+            userName  : user['name'],
+            userEmail : user['email'],
+            skillLevel: user['skill_level'] ?? 'beginner',
+          ),
         ),
         (_) => false,
       );
@@ -165,10 +198,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       width : 20,
                       height: 20,
                       child : Checkbox(
-                        value          : _rememberMe,
-                        onChanged      : (v) => setState(() => _rememberMe = v ?? false),
-                        activeColor    : const Color(0xFF2563EB),
-                        shape          : RoundedRectangleBorder(
+                        value         : _rememberMe,
+                        onChanged     : (v) => setState(() => _rememberMe = v ?? false),
+                        activeColor   : const Color(0xFF2563EB),
+                        shape         : RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(4),
                         ),
                         side: const BorderSide(color: Color(0xFF9CA3AF), width: 1.5),
@@ -180,10 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onTap: () => setState(() => _rememberMe = !_rememberMe),
                       child: const Text(
                         'Ingat Saya',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color   : Color(0xFF374151),
-                        ),
+                        style: TextStyle(fontSize: 14, color: Color(0xFF374151)),
                       ),
                     ),
                   ],
@@ -258,18 +288,18 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   InputDecoration _inputDecoration({
-    required String hint,
+    required String   hint,
     required IconData prefixIcon,
-    Widget? suffixIcon,
+    Widget?           suffixIcon,
   }) {
     return InputDecoration(
-      hintText   : hint,
-      hintStyle  : const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-      prefixIcon : Icon(prefixIcon, color: const Color(0xFF9CA3AF), size: 20),
-      suffixIcon : suffixIcon,
-      filled     : true,
-      fillColor  : const Color(0xFFF3F4F6),
-      border     : OutlineInputBorder(
+      hintText  : hint,
+      hintStyle : const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+      prefixIcon: Icon(prefixIcon, color: const Color(0xFF9CA3AF), size: 20),
+      suffixIcon: suffixIcon,
+      filled    : true,
+      fillColor : const Color(0xFFF3F4F6),
+      border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide  : BorderSide.none,
       ),
@@ -294,7 +324,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ── Widget Reusable ──────────────────────────────────────────
+// ── Widget Reusable ───────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String text;

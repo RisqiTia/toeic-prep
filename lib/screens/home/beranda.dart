@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:toeic_prep/screens/home/materials.dart';
-import 'package:toeic_prep/widgets/widgets.dart';
 import 'package:toeic_prep/screens/home/latihan.dart';
+import 'package:toeic_prep/screens/profile/profil_screen.dart';
+import 'package:toeic_prep/widgets/widgets.dart';
 
 class BerandaScreen extends StatefulWidget {
+  final int    userId;
   final String userName;
+  final String userEmail;
+  final String skillLevel;
 
-  const BerandaScreen({super.key, required this.userName});
+  const BerandaScreen({
+    super.key,
+    required this.userId,
+    required this.userName,
+    required this.userEmail,
+    required this.skillLevel,
+  });
 
   @override
   State<BerandaScreen> createState() => _BerandaScreenState();
@@ -36,7 +46,12 @@ class _BerandaScreenState extends State<BerandaScreen> {
     } else if (_currentIndex == 1) {
       return const Center(child: Text('Riwayat Page'));
     } else {
-      return const Center(child: Text('Profil Page'));
+      return ProfilScreen(
+        userId    : widget.userId,
+        userName  : widget.userName,
+        userEmail : widget.userEmail,
+        skillLevel: widget.skillLevel,
+      );
     }
   }
 
@@ -48,13 +63,14 @@ class _BerandaScreenState extends State<BerandaScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            // Header Greeting
+
+            // ── Header Greeting ──────────────────────────
             Text(
               'Halo, ${widget.userName}',
               style: const TextStyle(
-                fontSize: 24,
+                fontSize  : 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color     : Colors.black,
               ),
             ),
             const SizedBox(height: 12),
@@ -62,50 +78,55 @@ class _BerandaScreenState extends State<BerandaScreen> {
               'Mari kita berlatih TOEIC secara bertahap\ndan tingkatkan kemampuan bahasa\nInggris Anda setiap hari.',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey[600],
-                height: 1.5,
+                color   : Colors.grey[600],
+                height  : 1.5,
               ),
             ),
+
             const SizedBox(height: 32),
-            // Menu Cards
+
+            // ── Menu Cards ───────────────────────────────
             MenuCard(
-              icon: Icons.book,
-              title: 'Materi TOEIC',
-              description:
-                  'Tingkatkan kemampuan Listening\ndan Reading secara bertahap.',
-              onTap: () {
+              icon       : Icons.book,
+              title      : 'Materi TOEIC',
+              description: 'Tingkatkan kemampuan Listening\ndan Reading secara bertahap.',
+              onTap      : () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const MaterialsScreen(),
+                    builder: (_) => const MaterialsScreen(),
                   ),
                 );
               },
             ),
+
             const SizedBox(height: 16),
+
             MenuCard(
-              icon: Icons.lightbulb,
-              title: 'Latihan TOEIC',
-              description:
-                  'Latihan soal TOEIC per part untuk\nmengasah Listening dan Reading.',
-              onTap: () {
+              icon       : Icons.lightbulb,
+              title      : 'Latihan TOEIC',
+              description: 'Latihan soal TOEIC per part untuk\nmengasah Listening dan Reading.',
+              onTap      : () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const LatihanScreen(),
+                    builder: (_) => const LatihanScreen(),
                   ),
                 );
               },
             ),
+
             const SizedBox(height: 16),
+
             MenuCard(
-              icon: Icons.access_time,
-              title: 'Tes Simulasi',
+              icon       : Icons.access_time,
+              title      : 'Tes Simulasi',
               description: 'Uji coba lengkap dalam bentuk\nujian simulasi',
-              onTap: () {
-                // Navigate ke Tes Simulasi
+              onTap      : () {
+                // Navigate ke Tes Simulasi (akan dibuat nanti)
               },
             ),
+
             const SizedBox(height: 30),
           ],
         ),
