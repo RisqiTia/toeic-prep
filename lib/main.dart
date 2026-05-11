@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/user_session.dart';
 import 'screens/auth/login_screen.dart';
-<<<<<<< HEAD
-=======
 import 'screens/home/beranda.dart';
->>>>>>> 59508cf8d76c3c588521492bf01512ca0ac9ce1a
 
 void main() {
   runApp(const MyApp());
@@ -17,12 +14,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'TOEIC Prep',
-<<<<<<< HEAD
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
         useMaterial3: true,
-        fontFamily: 'Inter',
+        fontFamily: 'Poppins',
       ),
       home: const SplashRouter(),
     );
@@ -93,13 +89,11 @@ class _SplashRouterState extends State<SplashRouter> {
           ],
         ),
       ),
-=======
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       home: const BerandaScreen(userName: "Jesika Rika"),
->>>>>>> 59508cf8d76c3c588521492bf01512ca0ac9ce1a
     );
   }
 }
