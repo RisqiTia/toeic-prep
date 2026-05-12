@@ -14,12 +14,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title                    : 'TOEIC Prep',
+      title: 'TOEIC Prep',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
         useMaterial3: true,
-        fontFamily  : 'Inter',
+        fontFamily: 'Inter',
       ),
       home: const SplashRouter(),
     );
@@ -73,7 +73,6 @@ class _SplashRouterState extends State<SplashRouter> {
 
   @override
   Widget build(BuildContext context) {
-    // Splash screen saat cek sesi
     return const Scaffold(
       backgroundColor: Colors.white,
       body: Center(
@@ -83,14 +82,14 @@ class _SplashRouterState extends State<SplashRouter> {
             Text(
               'TOEIC Prep',
               style: TextStyle(
-                fontSize  : 32,
+                fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color     : Color(0xFF2563EB),
+                color: Color(0xFF2563EB),
               ),
             ),
             SizedBox(height: 12),
             CircularProgressIndicator(
-              color      : Color(0xFF2563EB),
+              color: Color(0xFF2563EB),
               strokeWidth: 2.5,
             ),
           ],
