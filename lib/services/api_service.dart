@@ -7,7 +7,7 @@ class ApiService {
   // Kalau pakai HP fisik          → cek IP WiFi kamu (misal: 192.168.1.5)
   // Kalau pakai browser/web       → localhost
   //static const String _baseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
-  static const String _baseUrl = 'http://10.241.104.156/toeic_prep_app/toeic_api';
+  static const String _baseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
 
   // ─── AUTH ─────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ class ApiService {
 
   // Update nama user
   static Future<Map<String, dynamic>> updateName({
-    required int    userId,
+    required int userId,
     required String newName,
   }) async {
     try {
@@ -69,7 +69,7 @@ class ApiService {
 
   // Update password user
   static Future<Map<String, dynamic>> updatePassword({
-    required int    userId,
+    required int userId,
     required String oldPassword,
     required String newPassword,
   }) async {
@@ -78,7 +78,7 @@ class ApiService {
         Uri.parse('$_baseUrl/auth.php?action=update_password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'user_id'     : userId,
+          'user_id': userId,
           'old_password': oldPassword,
           'new_password': newPassword,
         }),
