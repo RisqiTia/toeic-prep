@@ -1,565 +1,646 @@
-// import 'package:flutter/material.dart';
-// import 'package:audioplayers/audioplayers.dart';
-// import 'package:toeic_prep/models/latihan_soal_model.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:http/http.dart' as http;
+import 'package:toeic_prep/models/latihan_soal_model.dart';
+import 'package:toeic_prep/services/user_session.dart';
+import 'package:toeic_prep/screens/home/result_screen.dart';
 
-// class LatihanSoal extends StatefulWidget {
-//   final int partId;
-//   final String partName;
-//   final int userId;
+class LatihanSoal extends StatefulWidget {
+  final int partId;
+  final String partName;
+  final int userId;
 
-//   const LatihanSoal({
-//     super.key,
-//     required this.partId,
-//     required this.partName,
-//     required this.userId,
-//   });
+  const LatihanSoal({
+    super.key,
+    required this.partId,
+    required this.partName,
+    required this.userId,
+  });
 
-//   @override
-//   State<LatihanSoal> createState() => _LatihanSoalState();
-// }
+  @override
+  State<LatihanSoal> createState() => _LatihanSoalState();
+}
 
-// class _LatihanSoalState extends State<LatihanSoal> {
-//   late Future<Map<String, dynamic>> _soalFuture;
-//   final AudioPlayer _audioPlayer = AudioPlayer();
-//   bool _isPlaying = false;
+class _LatihanSoalState extends State<LatihanSoal> {
+  late Future<List<LatihanSoalModel>> _soalFuture;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+  bool _isLoadingAudio = false;
 
-//   int _currentIndex = 0;
-//   String? _selectedAnswer;
-//   final Map<int, String> _userAnswers = {};
+  int _currentIndex = 0;
+  String? _selectedAnswer;
+  final Map<int, String> _userAnswers = {};
 
-//   static const String _mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
+  // Untuk Part 3 & 4 — track audio yang sedang aktif
+  String? _currentAudioFile;
 
-//   @override
-//   void initState() {
-//     super.initState();
-//     _soalFuture = _fetchSoal();
-//     _audioPlayer.onPlayerStateChanged.listen((state) {
-//       if (mounted) {
-//         setState(() => _isPlaying = state == PlayerState.playing);
-//       }
-//     });
-//   }
+  static const String _mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
+  static const String _apiBaseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
 
-//   @override
-//   void dispose() {
-//     _audioPlayer.dispose();
-//     super.dispose();
-//   }
+  // Part listening
+  bool get _isListening => widget.partId >= 1 && widget.partId <= 4;
+  // Part yang tampilkan gambar
+  bool get _hasImage => widget.partId == 1;
+  // Part yang sembunyikan teks opsi
+  bool get _hideOptionText => widget.partId == 1 || widget.partId == 2;
 
-//   Future<Map<String, dynamic>> _fetchSoal() async {
-//     await Future.delayed(const Duration(milliseconds: 500));
-//     return {
-//       'status': 'success',
-//       'attempt_id': 0,
-//       'data': [
-//         {
-//           'id': '1',
-//           'part_id': widget.partId.toString(),
-//           'question_text':
-//               'Look at the picture and choose the statement that best describes it.',
-//           'option_a': 'The woman is holding a cup of coffee.',
-//           'option_b': 'She is writing in a notebook.',
-//           'option_c': 'The office is brightly lit.',
-//           'option_d': 'She is sitting by the window.',
-//           'correct_answer': 'A',
-//           'explanation': 'The woman is holding a cup of coffee.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//         {
-//           'id': '2',
-//           'part_id': widget.partId.toString(),
-//           'question_text': 'Where is the meeting scheduled?',
-//           'option_a': 'In the conference room.',
-//           'option_b': 'In the cafeteria.',
-//           'option_c': 'In the parking lot.',
-//           'option_d': 'In the lobby.',
-//           'correct_answer': 'A',
-//           'explanation': 'The meeting is in the conference room.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//         {
-//           'id': '3',
-//           'part_id': widget.partId.toString(),
-//           'question_text': 'What does the man suggest doing?',
-//           'option_a': 'Calling the client.',
-//           'option_b': 'Sending an email.',
-//           'option_c': 'Scheduling a meeting.',
-//           'option_d': 'Writing a report.',
-//           'correct_answer': 'B',
-//           'explanation': 'The man suggests sending an email.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//         {
-//           'id': '4',
-//           'part_id': widget.partId.toString(),
-//           'question_text': 'What time does the store close?',
-//           'option_a': 'At 8 PM.',
-//           'option_b': 'At 9 PM.',
-//           'option_c': 'At 10 PM.',
-//           'option_d': 'At 11 PM.',
-//           'correct_answer': 'C',
-//           'explanation': 'The store closes at 10 PM.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//         {
-//           'id': '5',
-//           'part_id': widget.partId.toString(),
-//           'question_text': 'Who is responsible for the project?',
-//           'option_a': 'The manager.',
-//           'option_b': 'The assistant.',
-//           'option_c': 'The client.',
-//           'option_d': 'The director.',
-//           'correct_answer': 'A',
-//           'explanation': 'The manager is responsible.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//         {
-//           'id': '6',
-//           'part_id': widget.partId.toString(),
-//           'question_text': 'What is the purpose of the announcement?',
-//           'option_a': 'To inform about a schedule change.',
-//           'option_b': 'To advertise a new product.',
-//           'option_c': 'To introduce a new employee.',
-//           'option_d': 'To announce a holiday.',
-//           'correct_answer': 'A',
-//           'explanation': 'The announcement is about a schedule change.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//         {
-//           'id': '7',
-//           'part_id': widget.partId.toString(),
-//           'question_text': 'Where does the conversation take place?',
-//           'option_a': 'At a restaurant.',
-//           'option_b': 'At a hotel.',
-//           'option_c': 'At an airport.',
-//           'option_d': 'At an office.',
-//           'correct_answer': 'B',
-//           'explanation': 'The conversation takes place at a hotel.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//         {
-//           'id': '8',
-//           'part_id': widget.partId.toString(),
-//           'question_text': 'What will the speakers do next?',
-//           'option_a': 'Go to lunch.',
-//           'option_b': 'Attend a meeting.',
-//           'option_c': 'Call a client.',
-//           'option_d': 'Review a report.',
-//           'correct_answer': 'B',
-//           'explanation': 'They will attend a meeting.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//         {
-//           'id': '9',
-//           'part_id': widget.partId.toString(),
-//           'question_text': 'How many people attended the conference?',
-//           'option_a': 'About 50.',
-//           'option_b': 'About 100.',
-//           'option_c': 'About 200.',
-//           'option_d': 'About 300.',
-//           'correct_answer': 'C',
-//           'explanation': 'About 200 people attended.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//         {
-//           'id': '10',
-//           'part_id': widget.partId.toString(),
-//           'question_text': 'What is being discussed in the email?',
-//           'option_a': 'A job application.',
-//           'option_b': 'A budget proposal.',
-//           'option_c': 'A travel itinerary.',
-//           'option_d': 'A product order.',
-//           'correct_answer': 'B',
-//           'explanation': 'The email discusses a budget proposal.',
-//           'image_file': '',
-//           'audio_file': '',
-//         },
-//       ],
-//     };
-//   }
+  @override
+  void initState() {
+    super.initState();
+    _soalFuture = _fetchSoal();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+          if (state == PlayerState.completed) _isLoadingAudio = false;
+        });
+      }
+    });
+  }
 
-//   Future<void> _toggleAudio(String audioFile) async {
-//     if (_isPlaying) {
-//       await _audioPlayer.pause();
-//     } else {
-//       await _audioPlayer.play(UrlSource('$_mediaBaseUrl/$audioFile'));
-//     }
-//   }
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
 
-//   void _goNext(List<LatihanSoalModel> soalList) {
-//     if (_currentIndex < soalList.length - 1) {
-//       setState(() {
-//         _currentIndex++;
-//         _selectedAnswer = _userAnswers[_currentIndex];
-//       });
-//       _audioPlayer.stop();
-//     }
-//   }
+  Future<List<LatihanSoalModel>> _fetchSoal() async {
+    final session = await UserSession.get();
+    final userId = session?['id'] ?? widget.userId;
+    final skillLevel = session?['skill_level'] ?? 'beginner';
 
-//   void _goPrev() {
-//     if (_currentIndex > 0) {
-//       setState(() {
-//         _currentIndex--;
-//         _selectedAnswer = _userAnswers[_currentIndex];
-//       });
-//       _audioPlayer.stop();
-//     }
-//   }
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$_apiBaseUrl/questions.php'
+          '?action=practice&part_id=${widget.partId}&user_id=$userId',
+        ),
+      );
 
-//   void _selectAnswer(String answer) {
-//     setState(() {
-//       _selectedAnswer = answer;
-//       _userAnswers[_currentIndex] = answer;
-//     });
-//   }
+      final data = jsonDecode(response.body);
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: Colors.white,
-//       body: FutureBuilder<Map<String, dynamic>>(
-//         future: _soalFuture,
-//         builder: (context, snapshot) {
-//           if (snapshot.connectionState == ConnectionState.waiting) {
-//             return const Center(child: CircularProgressIndicator());
-//           }
+      if (data['status'] == 'success') {
+        final List allSoal = data['data'];
 
-//           if (snapshot.hasError) {
-//             return Center(
-//               child: Column(
-//                 mainAxisAlignment: MainAxisAlignment.center,
-//                 children: [
-//                   const Icon(Icons.error_outline, size: 48, color: Colors.red),
-//                   const SizedBox(height: 16),
-//                   Text('Error: ${snapshot.error}', textAlign: TextAlign.center),
-//                   const SizedBox(height: 24),
-//                   ElevatedButton(
-//                     onPressed: () => setState(() => _soalFuture = _fetchSoal()),
-//                     child: const Text('Coba Lagi'),
-//                   ),
-//                 ],
-//               ),
-//             );
-//           }
+        // Filter berdasarkan level user
+        final filtered = allSoal
+            .where((e) => e['difficulty_level'] == skillLevel)
+            .toList();
 
-//           final data = snapshot.data!;
-//           final List rawList = data['data'];
-//           final soalList = rawList
-//               .map((e) => LatihanSoalModel.fromJson(e))
-//               .toList();
-//           final soal = soalList[_currentIndex];
-//           final total = soalList.length;
+        // Part 3 & 4 → 12 soal (grup utuh berdasarkan audio)
+        if (widget.partId == 3 || widget.partId == 4) {
+          return _groupAndLimit(filtered, targetSoal: 12);
+        }
 
-//           return SafeArea(
-//             child: Column(
-//               children: [
-//                 // ── Top Bar ──────────────────────────────
-//                 Padding(
-//                   padding: const EdgeInsets.symmetric(
-//                     horizontal: 16,
-//                     vertical: 12,
-//                   ),
-//                   child: Row(
-//                     children: [
-//                       GestureDetector(
-//                         onTap: () => Navigator.pop(context),
-//                         child: Container(
-//                           width: 36,
-//                           height: 36,
-//                           decoration: BoxDecoration(
-//                             color: Colors.grey[100],
-//                             borderRadius: BorderRadius.circular(8),
-//                           ),
-//                           child: const Icon(Icons.close, size: 20),
-//                         ),
-//                       ),
-//                       Expanded(
-//                         child: Padding(
-//                           padding: const EdgeInsets.symmetric(horizontal: 12),
-//                           child: ClipRRect(
-//                             borderRadius: BorderRadius.circular(4),
-//                             child: LinearProgressIndicator(
-//                               value: (_currentIndex + 1) / total,
-//                               backgroundColor: Colors.grey[200],
-//                               color: const Color(0xFF2563EB),
-//                               minHeight: 6,
-//                             ),
-//                           ),
-//                         ),
-//                       ),
-//                       Text(
-//                         'Question ${_currentIndex + 1} of $total',
-//                         style: const TextStyle(
-//                           fontSize: 13,
-//                           fontWeight: FontWeight.w500,
-//                           color: Colors.black87,
-//                         ),
-//                       ),
-//                     ],
-//                   ),
-//                 ),
+        // Part 6 & 7 → 12 soal (grup utuh berdasarkan text paragraf)
+        if (widget.partId == 6 || widget.partId == 7) {
+          return _groupAndLimit(filtered, targetSoal: 12);
+        }
 
-//                 // ── Konten Soal ──────────────────────────
-//                 Expanded(
-//                   child: SingleChildScrollView(
-//                     padding: const EdgeInsets.all(16),
-//                     child: Column(
-//                       crossAxisAlignment: CrossAxisAlignment.start,
-//                       children: [
-//                         // Gambar
-//                         if (soal.imageFile != null &&
-//                             soal.imageFile!.isNotEmpty)
-//                           ClipRRect(
-//                             borderRadius: BorderRadius.circular(12),
-//                             child: Image.network(
-//                               '$_mediaBaseUrl/${soal.imageFile}',
-//                               width: double.infinity,
-//                               fit: BoxFit.cover,
-//                               errorBuilder: (_, _, _) => Container(
-//                                 height: 200,
-//                                 color: Colors.grey[200],
-//                                 child: const Center(
-//                                   child: Icon(
-//                                     Icons.image_not_supported,
-//                                     color: Colors.grey,
-//                                     size: 40,
-//                                   ),
-//                                 ),
-//                               ),
-//                             ),
-//                           ),
+        // Part 1, 2, 5 → tepat 10 soal, acak
+        filtered.shuffle();
+        return filtered
+            .take(10)
+            .map((e) => LatihanSoalModel.fromJson(e))
+            .toList();
+      } else {
+        throw Exception(data['message'] ?? 'Gagal mengambil soal');
+      }
+    } catch (e) {
+      throw Exception('Gagal terhubung ke server: $e');
+    }
+  }
 
-//                         if (soal.imageFile != null &&
-//                             soal.imageFile!.isNotEmpty)
-//                           const SizedBox(height: 16),
+  // Kelompokkan berdasarkan audio_file, ambil grup utuh mendekati targetSoal
+  List<LatihanSoalModel> _groupAndLimit(
+    List rawList, {
+    required int targetSoal,
+  }) {
+    final Map<String, List> grouped = {};
 
-//                         // Audio player
-//                         if (soal.audioFile != null &&
-//                             soal.audioFile!.isNotEmpty)
-//                           GestureDetector(
-//                             onTap: () => _toggleAudio(soal.audioFile!),
-//                             child: Container(
-//                               width: double.infinity,
-//                               padding: const EdgeInsets.symmetric(
-//                                 horizontal: 16,
-//                                 vertical: 14,
-//                               ),
-//                               decoration: BoxDecoration(
-//                                 color: Colors.white,
-//                                 borderRadius: BorderRadius.circular(30),
-//                                 border: Border.all(color: Colors.grey[300]!),
-//                               ),
-//                               child: Row(
-//                                 children: [
-//                                   Icon(
-//                                     _isPlaying
-//                                         ? Icons.pause_circle_filled
-//                                         : Icons.play_circle_filled,
-//                                     color: const Color(0xFF2563EB),
-//                                     size: 28,
-//                                   ),
-//                                   const SizedBox(width: 12),
-//                                   Expanded(
-//                                     child: Row(
-//                                       mainAxisAlignment:
-//                                           MainAxisAlignment.spaceEvenly,
-//                                       children: List.generate(
-//                                         30,
-//                                         (i) => Container(
-//                                           width: 2.5,
-//                                           height: (i % 3 == 0)
-//                                               ? 20
-//                                               : (i % 2 == 0)
-//                                               ? 14
-//                                               : 8,
-//                                           decoration: BoxDecoration(
-//                                             color: Colors.grey[400],
-//                                             borderRadius: BorderRadius.circular(
-//                                               2,
-//                                             ),
-//                                           ),
-//                                         ),
-//                                       ),
-//                                     ),
-//                                   ),
-//                                 ],
-//                               ),
-//                             ),
-//                           ),
+    for (final soal in rawList) {
+      String groupKey = '';
 
-//                         if (soal.audioFile != null &&
-//                             soal.audioFile!.isNotEmpty)
-//                           const SizedBox(height: 16),
+      // =========================
+      // PART 3 & 4 → berdasarkan audio
+      // =========================
+      if (widget.partId == 3 || widget.partId == 4) {
+        groupKey = soal['audio_file'] ?? '';
+      }
+      // =========================
+      // PART 6 & 7 → berdasarkan awal question_text
+      // =========================
+      else if (widget.partId == 6 || widget.partId == 7) {
+        String question = soal['question_text'] ?? '';
 
-//                         // Teks soal
-//                         if (soal.questionText.isNotEmpty)
-//                           Padding(
-//                             padding: const EdgeInsets.only(bottom: 16),
-//                             child: Text(
-//                               soal.questionText,
-//                               style: const TextStyle(
-//                                 fontSize: 15,
-//                                 color: Colors.black87,
-//                                 height: 1.6,
-//                               ),
-//                             ),
-//                           ),
+        groupKey = question.length > 50 ? question.substring(0, 50) : question;
+      }
 
-//                         // Pilihan A/B/C/D
-//                         ...['A', 'B', 'C', 'D'].map((key) {
-//                           final text = key == 'A'
-//                               ? soal.optionA
-//                               : key == 'B'
-//                               ? soal.optionB
-//                               : key == 'C'
-//                               ? soal.optionC
-//                               : soal.optionD;
-//                           final isSelected = _selectedAnswer == key;
+      grouped.putIfAbsent(groupKey, () => []).add(soal);
+    }
 
-//                           return GestureDetector(
-//                             onTap: () => _selectAnswer(key),
-//                             child: Container(
-//                               width: double.infinity,
-//                               margin: const EdgeInsets.only(bottom: 12),
-//                               padding: const EdgeInsets.symmetric(
-//                                 horizontal: 16,
-//                                 vertical: 16,
-//                               ),
-//                               decoration: BoxDecoration(
-//                                 color: isSelected
-//                                     ? Colors.blue[50]
-//                                     : Colors.white,
-//                                 borderRadius: BorderRadius.circular(12),
-//                                 border: Border.all(
-//                                   color: isSelected
-//                                       ? const Color(0xFF2563EB)
-//                                       : Colors.grey[300]!,
-//                                   width: isSelected ? 2 : 1,
-//                                 ),
-//                               ),
-//                               child: Row(
-//                                 children: [
-//                                   Container(
-//                                     width: 32,
-//                                     height: 32,
-//                                     decoration: BoxDecoration(
-//                                       shape: BoxShape.circle,
-//                                       color: isSelected
-//                                           ? const Color(0xFF2563EB)
-//                                           : Colors.grey[100],
-//                                     ),
-//                                     child: Center(
-//                                       child: Text(
-//                                         key,
-//                                         style: TextStyle(
-//                                           fontWeight: FontWeight.bold,
-//                                           fontSize: 14,
-//                                           color: isSelected
-//                                               ? Colors.white
-//                                               : Colors.black87,
-//                                         ),
-//                                       ),
-//                                     ),
-//                                   ),
-//                                   const SizedBox(width: 12),
-//                                   Expanded(
-//                                     child: Text(
-//                                       text,
-//                                       style: const TextStyle(
-//                                         fontSize: 14,
-//                                         color: Colors.black87,
-//                                       ),
-//                                     ),
-//                                   ),
-//                                 ],
-//                               ),
-//                             ),
-//                           );
-//                         }),
-//                       ],
-//                     ),
-//                   ),
-//                 ),
+    // acak grup
+    final groupKeys = grouped.keys.toList()..shuffle();
 
-//                 // ── Bottom Button ─────────────────────────
-//                 Container(
-//                   padding: const EdgeInsets.symmetric(
-//                     horizontal: 16,
-//                     vertical: 12,
-//                   ),
-//                   decoration: BoxDecoration(
-//                     color: Colors.white,
-//                     border: Border(top: BorderSide(color: Colors.grey[200]!)),
-//                   ),
-//                   child: Row(
-//                     children: [
-//                       Expanded(
-//                         child: OutlinedButton(
-//                           onPressed: _currentIndex > 0 ? () => _goPrev() : null,
-//                           style: OutlinedButton.styleFrom(
-//                             padding: const EdgeInsets.symmetric(vertical: 14),
-//                             shape: RoundedRectangleBorder(
-//                               borderRadius: BorderRadius.circular(12),
-//                             ),
-//                             side: BorderSide(color: Colors.grey[300]!),
-//                           ),
-//                           child: const Text(
-//                             'Sebelumnya',
-//                             style: TextStyle(
-//                               fontSize: 14,
-//                               color: Colors.black87,
-//                               fontWeight: FontWeight.w500,
-//                             ),
-//                           ),
-//                         ),
-//                       ),
-//                       const SizedBox(width: 12),
-//                       Expanded(
-//                         child: ElevatedButton(
-//                           onPressed: () {
-//                             if (_currentIndex < soalList.length - 1) {
-//                               _goNext(soalList);
-//                             } else {
-//                               // TODO: ke halaman hasil
-//                             }
-//                           },
-//                           style: ElevatedButton.styleFrom(
-//                             backgroundColor: const Color(0xFF2563EB),
-//                             padding: const EdgeInsets.symmetric(vertical: 14),
-//                             shape: RoundedRectangleBorder(
-//                               borderRadius: BorderRadius.circular(12),
-//                             ),
-//                             elevation: 0,
-//                           ),
-//                           child: Text(
-//                             _currentIndex < soalList.length - 1
-//                                 ? 'Selanjutnya'
-//                                 : 'Selesai',
-//                             style: const TextStyle(
-//                               fontSize: 14,
-//                               color: Colors.white,
-//                               fontWeight: FontWeight.w600,
-//                             ),
-//                           ),
-//                         ),
-//                       ),
-//                     ],
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           );
-//         },
-//       ),
-//     );
-//   }
-// }
+    final result = <LatihanSoalModel>[];
+
+    for (final key in groupKeys) {
+      final group = grouped[key]!;
+
+      // TAMBAHKAN SELURUH GRUP
+      result.addAll(group.map((e) => LatihanSoalModel.fromJson(e)));
+
+      // stop jika target tercapai
+      if (result.length >= targetSoal) {
+        break;
+      }
+    }
+
+    return result;
+  }
+
+  Future<void> _toggleAudio(String audioFile) async {
+    // Jika ganti audio (soal berbeda)
+    if (_currentAudioFile != audioFile) {
+      await _audioPlayer.stop();
+      _currentAudioFile = audioFile;
+      setState(() {
+        _isPlaying = false;
+        _isLoadingAudio = true;
+      });
+      try {
+        await _audioPlayer.setSourceUrl('$_mediaBaseUrl/$audioFile');
+        await _audioPlayer.resume();
+        setState(() => _isLoadingAudio = false);
+      } catch (e) {
+        debugPrint('❌ Audio error: $e');
+        setState(() => _isLoadingAudio = false);
+      }
+      return;
+    }
+
+    // Toggle play/pause audio yang sama
+    if (_isPlaying) {
+      await _audioPlayer.pause();
+      setState(() => _isPlaying = false);
+    } else {
+      setState(() => _isLoadingAudio = true);
+      try {
+        await _audioPlayer.resume();
+        setState(() => _isLoadingAudio = false);
+      } catch (e) {
+        debugPrint('❌ Audio error: $e');
+        setState(() => _isLoadingAudio = false);
+      }
+    }
+  }
+
+  void _goNext(List<LatihanSoalModel> soalList) {
+    if (_currentIndex < soalList.length - 1) {
+      final nextSoal = soalList[_currentIndex + 1];
+      // Jika soal berikutnya audio berbeda → stop audio
+      if (nextSoal.audioFile != _currentAudioFile) {
+        _audioPlayer.stop();
+        setState(() {
+          _isPlaying = false;
+          _currentAudioFile = null;
+        });
+      }
+      setState(() {
+        _currentIndex++;
+        _selectedAnswer = _userAnswers[_currentIndex];
+      });
+    }
+  }
+
+  void _goPrev() {
+    if (_currentIndex > 0) {
+      setState(() {
+        _currentIndex--;
+        _selectedAnswer = _userAnswers[_currentIndex];
+      });
+    }
+  }
+
+  void _selectAnswer(String answer) {
+    setState(() {
+      _selectedAnswer = answer;
+      _userAnswers[_currentIndex] = answer;
+    });
+  }
+
+  int _calculateScore(List<LatihanSoalModel> soalList) {
+    int correct = 0;
+
+    for (int i = 0; i < soalList.length; i++) {
+      final soal = soalList[i];
+
+      // Jawaban user
+      final userAnswer = _userAnswers[i];
+
+      // Jawaban benar dari database
+      final correctAnswer = soal.correctAnswer;
+
+      if (userAnswer == correctAnswer) {
+        correct++;
+      }
+    }
+
+    // Konversi ke nilai 0-100
+    int finalScore = ((correct / soalList.length) * 100).round();
+
+    return finalScore;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: FutureBuilder<List<LatihanSoalModel>>(
+        future: _soalFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => setState(() => _soalFuture = _fetchSoal()),
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final soalList = snapshot.data!;
+          if (soalList.isEmpty) {
+            return const Center(
+              child: Text('Soal tidak tersedia untuk level ini.'),
+            );
+          }
+
+          final soal = soalList[_currentIndex];
+          final total = soalList.length;
+
+          return SafeArea(
+            child: Column(
+              children: [
+                // ── Top Bar ──────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.close, size: 20),
+                        ),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: (_currentIndex + 1) / total,
+                              backgroundColor: Colors.grey[200],
+                              color: const Color(0xFF2563EB),
+                              minHeight: 6,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Question ${_currentIndex + 1} of $total',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Konten Soal ──────────────────────────
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── GAMBAR (Part 1 saja)
+                        if (_hasImage &&
+                            soal.imageFile != null &&
+                            soal.imageFile!.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              '$_mediaBaseUrl/${soal.imageFile}',
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Container(
+                                  height: 220,
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (_, _, _) => Container(
+                                height: 220,
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    color: Colors.grey,
+                                    size: 40,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        if (_hasImage &&
+                            soal.imageFile != null &&
+                            soal.imageFile!.isNotEmpty)
+                          const SizedBox(height: 16),
+
+                        // ── AUDIO PLAYER (Part 1-4)
+                        if (_isListening &&
+                            soal.audioFile != null &&
+                            soal.audioFile!.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => _toggleAudio(soal.audioFile!),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(color: Colors.grey[300]!),
+                              ),
+                              child: Row(
+                                children: [
+                                  _isLoadingAudio
+                                      ? const SizedBox(
+                                          width: 32,
+                                          height: 32,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFF2563EB),
+                                          ),
+                                        )
+                                      : Icon(
+                                          _isPlaying
+                                              ? Icons.pause_circle_filled
+                                              : Icons.play_circle_filled,
+                                          color: const Color(0xFF2563EB),
+                                          size: 32,
+                                        ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: List.generate(
+                                        30,
+                                        (i) => Container(
+                                          width: 2.5,
+                                          height: (i % 3 == 0)
+                                              ? 20
+                                              : (i % 2 == 0)
+                                              ? 14
+                                              : 8,
+                                          decoration: BoxDecoration(
+                                            color: _isPlaying
+                                                ? const Color(0xFF2563EB)
+                                                : Colors.grey[400],
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        if (_isListening &&
+                            soal.audioFile != null &&
+                            soal.audioFile!.isNotEmpty)
+                          const SizedBox(height: 20),
+
+                        // ── TEKS SOAL
+                        // Part 1 & 2: sembunyikan teks soal
+                        // Part 3-7: tampilkan teks soal
+                        if (!_hideOptionText && soal.questionText.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Text(
+                              soal.questionText,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                                height: 1.6,
+                              ),
+                            ),
+                          ),
+
+                        // ── PILIHAN JAWABAN
+                        ...['A', 'B', 'C', 'D'].map((key) {
+                          final text = key == 'A'
+                              ? soal.optionA
+                              : key == 'B'
+                              ? soal.optionB
+                              : key == 'C'
+                              ? soal.optionC
+                              : soal.optionD;
+                          final isSelected = _selectedAnswer == key;
+
+                          return GestureDetector(
+                            onTap: () => _selectAnswer(key),
+                            child: Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                // Jika hide text, padding lebih kecil
+                                vertical: _hideOptionText ? 12 : 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? Colors.blue[50]
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF2563EB)
+                                      : Colors.grey[300]!,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  // Bulatan A/B/C/D
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isSelected
+                                          ? const Color(0xFF2563EB)
+                                          : Colors.grey[100],
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        key,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Teks opsi — hanya tampil untuk Part 3-7
+                                  if (!_hideOptionText) ...[
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        text,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Bottom Button ─────────────────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _currentIndex > 0 ? () => _goPrev() : null,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            side: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          child: const Text(
+                            'Sebelumnya',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_currentIndex < soalList.length - 1) {
+                              _goNext(soalList);
+                            } else {
+                              // Hitung skor
+                              int finalScore = _calculateScore(soalList);
+
+                              // Pindah ke halaman hasil
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ResultScreen(score: finalScore),
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            _currentIndex < soalList.length - 1
+                                ? 'Selanjutnya'
+                                : 'Selesai',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}

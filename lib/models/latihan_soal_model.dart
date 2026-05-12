@@ -1,4 +1,4 @@
-class LatihanSoal {
+class LatihanSoalModel {
   final int id;
   final int partId;
   final String questionText;
@@ -11,7 +11,7 @@ class LatihanSoal {
   final String? imageFile;
   final String? audioFile;
 
-  LatihanSoal({
+  LatihanSoalModel({
     required this.id,
     required this.partId,
     required this.questionText,
@@ -25,8 +25,8 @@ class LatihanSoal {
     this.audioFile,
   });
 
-  factory LatihanSoal.fromMap(Map<String, dynamic> json) {
-    return LatihanSoal(
+  factory LatihanSoalModel.fromJson(Map<String, dynamic> json) {
+    return LatihanSoalModel(
       id: int.parse(json['id'].toString()),
       partId: int.parse(json['part_id'].toString()),
       questionText: json['question_text'] ?? '',

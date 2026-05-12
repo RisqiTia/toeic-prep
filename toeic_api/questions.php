@@ -26,8 +26,7 @@ if ($action === 'practice' && $part_id && $user_id) {
         FROM questions q
         JOIN toeic_parts tp ON q.part_id = tp.id
         WHERE q.part_id = ?
-        ORDER BY RAND()
-        LIMIT 12
+        ORDER BY q.id ASC
     ");
     $stmt->execute([$part_id]);
     $questions = $stmt->fetchAll();
@@ -59,16 +58,16 @@ elseif ($action === 'simulation' && $user_id) {
     foreach ($limits as $pid => $limit) {
         $stmt = $pdo->prepare("
             SELECT q.id, q.part_id, q.question_text,
-                   q.option_a, q.option_b, q.option_c, q.option_d,
-                   q.correct_answer, q.explanation,
-                   q.image_file, q.audio_file, q.difficulty_level,
-                   tp.name AS part_name, tp.type AS part_type
+                q.option_a, q.option_b, q.option_c, q.option_d,
+                q.correct_answer, q.explanation,
+                q.image_file, q.audio_file, q.difficulty_level,
+                tp.name AS part_name, tp.type AS part_type
             FROM questions q
             JOIN toeic_parts tp ON q.part_id = tp.id
             WHERE q.part_id = ?
-            ORDER BY RAND()
-            LIMIT ?
+            ORDER BY q.id ASC
         ");
+
         $stmt->execute([$pid, $limit]);
         $allQuestions = array_merge($allQuestions, $stmt->fetchAll());
     }
