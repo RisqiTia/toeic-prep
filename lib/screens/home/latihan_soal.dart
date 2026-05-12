@@ -88,13 +88,17 @@ class _LatihanSoalState extends State<LatihanSoal> {
             .where((e) => e['difficulty_level'] == skillLevel)
             .toList();
 
-        // Untuk Part 3 & 4 — kelompokkan berdasarkan audio
-        // lalu ambil max 4 grup (10 soal)
+        // Part 3 & 4 → 12 soal (grup utuh berdasarkan audio)
         if (widget.partId == 3 || widget.partId == 4) {
-          return _groupAndLimitPart34(filtered);
+          return _groupAndLimit(filtered, targetSoal: 12);
         }
 
-        // Part lain — acak dan ambil 10
+        // Part 6 & 7 → 12 soal (grup utuh berdasarkan text paragraf)
+        if (widget.partId == 6 || widget.partId == 7) {
+          return _groupAndLimit(filtered, targetSoal: 12);
+        }
+
+        // Part 1, 2, 5 → tepat 10 soal, acak
         filtered.shuffle();
         return filtered
             .take(10)
@@ -108,26 +112,51 @@ class _LatihanSoalState extends State<LatihanSoal> {
     }
   }
 
-  // Kelompokkan soal Part 3 & 4 berdasarkan audio_file yang sama
-  List<LatihanSoalModel> _groupAndLimitPart34(List rawList) {
-    // Kelompokkan berdasarkan audio_file
+  // Kelompokkan berdasarkan audio_file, ambil grup utuh mendekati targetSoal
+  List<LatihanSoalModel> _groupAndLimit(
+    List rawList, {
+    required int targetSoal,
+  }) {
     final Map<String, List> grouped = {};
+
     for (final soal in rawList) {
-      final audio = soal['audio_file'] ?? '';
-      grouped.putIfAbsent(audio, () => []).add(soal);
+      String groupKey = '';
+
+      // =========================
+      // PART 3 & 4 → berdasarkan audio
+      // =========================
+      if (widget.partId == 3 || widget.partId == 4) {
+        groupKey = soal['audio_file'] ?? '';
+      }
+      // =========================
+      // PART 6 & 7 → berdasarkan awal question_text
+      // =========================
+      else if (widget.partId == 6 || widget.partId == 7) {
+        String question = soal['question_text'] ?? '';
+
+        groupKey = question.length > 50 ? question.substring(0, 50) : question;
+      }
+
+      grouped.putIfAbsent(groupKey, () => []).add(soal);
     }
 
-    // Ambil max 4 grup (acak)
+    // acak grup
     final groupKeys = grouped.keys.toList()..shuffle();
-    final selectedKeys = groupKeys.take(4);
 
-    // Gabungkan soal dari grup yang dipilih
     final result = <LatihanSoalModel>[];
-    for (final key in selectedKeys) {
-      for (final soal in grouped[key]!) {
-        result.add(LatihanSoalModel.fromJson(soal));
+
+    for (final key in groupKeys) {
+      final group = grouped[key]!;
+
+      // TAMBAHKAN SELURUH GRUP
+      result.addAll(group.map((e) => LatihanSoalModel.fromJson(e)));
+
+      // stop jika target tercapai
+      if (result.length >= targetSoal) {
+        break;
       }
     }
+
     return result;
   }
 
@@ -437,22 +466,6 @@ class _LatihanSoalState extends State<LatihanSoal> {
                         // Part 1 & 2: sembunyikan teks soal
                         // Part 3-7: tampilkan teks soal
                         if (!_hideOptionText && soal.questionText.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Text(
-                              soal.questionText,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                                height: 1.6,
-                              ),
-                            ),
-                          ),
-
-                        // Untuk Part 3 & 4 tampilkan teks soal
-                        if ((widget.partId == 3 || widget.partId == 4) &&
-                            soal.questionText.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 16),
                             child: Text(
