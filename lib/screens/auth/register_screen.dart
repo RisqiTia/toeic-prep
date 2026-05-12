@@ -11,15 +11,15 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey          = GlobalKey<FormState>();
-  final _nameController   = TextEditingController();
-  final _emailController  = TextEditingController();
-  final _passController   = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passController = TextEditingController();
   final _confirmController = TextEditingController();
 
-  bool _obscurePass    = true;
+  bool _obscurePass = true;
   bool _obscureConfirm = true;
-  bool _isLoading      = false;
+  bool _isLoading = false;
   String? _errorMessage;
 
   @override
@@ -39,8 +39,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     final result = await ApiService.register(
-      name    : _nameController.text.trim(),
-      email   : _emailController.text.trim(),
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
       password: _passController.text,
     );
 
@@ -53,7 +53,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => SkillLevelScreen(
-            name : _nameController.text.trim(),
+            name: _nameController.text.trim(),
             email: _emailController.text.trim(),
           ),
         ),
@@ -90,18 +90,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const Text(
                         'TOEIC Prep',
                         style: TextStyle(
-                          fontSize   : 28,
-                          fontWeight : FontWeight.bold,
-                          color      : Color(0xFF1A1A2E),
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A2E),
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'Persiapan TOEIC Internasional',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color   : Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -113,10 +110,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _FieldLabel(text: 'Nama Pengguna'),
                 const SizedBox(height: 8),
                 _InputField(
-                  controller  : _nameController,
-                  hint        : 'Nama lengkap kamu',
-                  prefixIcon  : Icons.person_outline,
-                  validator   : (v) => v!.trim().isEmpty ? 'Nama tidak boleh kosong' : null,
+                  controller: _nameController,
+                  hint: 'Nama lengkap kamu',
+                  prefixIcon: Icons.person_outline,
+                  validator: (v) =>
+                      v!.trim().isEmpty ? 'Nama tidak boleh kosong' : null,
                 ),
 
                 const SizedBox(height: 16),
@@ -125,11 +123,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _FieldLabel(text: 'Email'),
                 const SizedBox(height: 8),
                 _InputField(
-                  controller  : _emailController,
-                  hint        : 'contoh@email.com',
-                  prefixIcon  : Icons.email_outlined,
+                  controller: _emailController,
+                  hint: 'contoh@email.com',
+                  prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
-                  validator   : (v) {
+                  validator: (v) {
                     if (v!.trim().isEmpty) return 'Email tidak boleh kosong';
                     if (!v.contains('@')) return 'Format email tidak valid';
                     return null;
@@ -142,18 +140,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _FieldLabel(text: 'Kata Sandi'),
                 const SizedBox(height: 8),
                 _InputField(
-                  controller : _passController,
-                  hint       : '••••••••',
-                  prefixIcon : Icons.lock_outline,
+                  controller: _passController,
+                  hint: '••••••••',
+                  prefixIcon: Icons.lock_outline,
                   obscureText: _obscurePass,
-                  suffixIcon : IconButton(
-                    icon : Icon(
-                      _obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePass
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       color: Colors.grey,
                     ),
-                    onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                    onPressed: () =>
+                        setState(() => _obscurePass = !_obscurePass),
                   ),
-                  validator  : (v) => v!.length < 6 ? 'Kata sandi minimal 6 karakter' : null,
+                  validator: (v) =>
+                      v!.length < 6 ? 'Kata sandi minimal 6 karakter' : null,
                 ),
 
                 const SizedBox(height: 16),
@@ -162,20 +164,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _FieldLabel(text: 'Konfirmasi Kata Sandi'),
                 const SizedBox(height: 8),
                 _InputField(
-                  controller : _confirmController,
-                  hint       : '••••••••',
-                  prefixIcon : Icons.lock_outline,
+                  controller: _confirmController,
+                  hint: '••••••••',
+                  prefixIcon: Icons.lock_outline,
                   obscureText: _obscureConfirm,
-                  suffixIcon : IconButton(
-                    icon : Icon(
-                      _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirm
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       color: Colors.grey,
                     ),
-                    onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                    onPressed: () =>
+                        setState(() => _obscureConfirm = !_obscureConfirm),
                   ),
-                  validator  : (v) {
-                    if (v!.isEmpty) return 'Konfirmasi kata sandi tidak boleh kosong';
-                    if (v != _passController.text) return 'Kata sandi tidak cocok';
+                  validator: (v) {
+                    if (v!.isEmpty)
+                      return 'Konfirmasi kata sandi tidak boleh kosong';
+                    if (v != _passController.text)
+                      return 'Kata sandi tidak cocok';
                     return null;
                   },
                 ),
@@ -184,9 +191,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // ── Tombol Daftar ─────────────────────────────
                 SizedBox(
-                  width : double.infinity,
+                  width: double.infinity,
                   height: 52,
-                  child : ElevatedButton(
+                  child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleDaftar,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
@@ -198,17 +205,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     child: _isLoading
                         ? const SizedBox(
-                            width : 22,
+                            width: 22,
                             height: 22,
-                            child : CircularProgressIndicator(
-                              color      : Colors.white,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
                               strokeWidth: 2.5,
                             ),
                           )
                         : const Text(
                             'Daftar',
                             style: TextStyle(
-                              fontSize  : 16,
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -230,9 +237,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         children: [
                           TextSpan(text: 'Sudah Punya Akun? '),
                           TextSpan(
-                            text : 'Masuk',
+                            text: 'Masuk',
                             style: TextStyle(
-                              color     : Color(0xFF2563EB),
+                              color: Color(0xFF2563EB),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -265,28 +272,28 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text,
       style: const TextStyle(
-        fontSize  : 14,
+        fontSize: 14,
         fontWeight: FontWeight.w500,
-        color     : Color(0xFF1A1A2E),
+        color: Color(0xFF1A1A2E),
       ),
     );
   }
 }
 
 class _InputField extends StatelessWidget {
-  final TextEditingController  controller;
-  final String                 hint;
-  final IconData               prefixIcon;
-  final bool                   obscureText;
-  final Widget?                suffixIcon;
-  final TextInputType          keyboardType;
+  final TextEditingController controller;
+  final String hint;
+  final IconData prefixIcon;
+  final bool obscureText;
+  final Widget? suffixIcon;
+  final TextInputType keyboardType;
   final String? Function(String?)? validator;
 
   const _InputField({
     required this.controller,
     required this.hint,
     required this.prefixIcon,
-    this.obscureText  = false,
+    this.obscureText = false,
     this.suffixIcon,
     this.keyboardType = TextInputType.text,
     this.validator,
@@ -295,39 +302,42 @@ class _InputField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
-      controller   : controller,
-      obscureText  : obscureText,
-      keyboardType : keyboardType,
-      validator    : validator,
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      validator: validator,
       style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
-      decoration   : InputDecoration(
-        hintText    : hint,
-        hintStyle   : TextStyle(color: Colors.grey[400], fontSize: 14),
-        prefixIcon  : Icon(prefixIcon, color: Colors.grey[400], size: 20),
-        suffixIcon  : suffixIcon,
-        filled      : true,
-        fillColor   : const Color(0xFFF3F4F6),
-        border      : OutlineInputBorder(
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+        prefixIcon: Icon(prefixIcon, color: Colors.grey[400], size: 20),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: const Color(0xFFF3F4F6),
+        border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide  : BorderSide.none,
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide  : BorderSide.none,
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide  : const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide  : const BorderSide(color: Colors.red, width: 1.5),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide  : const BorderSide(color: Colors.red, width: 1.5),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
     );
   }
@@ -340,10 +350,10 @@ class _ErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width : double.infinity,
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color       : const Color(0xFFEF4444),
+        color: const Color(0xFFEF4444),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

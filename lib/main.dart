@@ -3,7 +3,8 @@ import 'services/user_session.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/beranda.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -18,7 +19,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
         useMaterial3: true,
-        fontFamily: 'Poppins',
+        fontFamily: 'Inter',
       ),
       home: const SplashRouter(),
     );
@@ -46,15 +47,21 @@ class _SplashRouterState extends State<SplashRouter> {
     if (!mounted) return;
 
     if (loggedIn) {
-      // User sudah login dan "Ingat Saya" aktif
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (_) => const HomeScreen()),
-      // );
-      // ── Sementara langsung ke Login dulu ──
+      // Ambil data user yang tersimpan dari sesi
+      final userData = await UserSession.get();
+
+      if (!mounted) return;
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(
+          builder: (_) => BerandaScreen(
+            userId    : userData?['id']          ?? 0,
+            userName  : userData?['name']        ?? 'Pengguna',
+            userEmail : userData?['email']       ?? '',
+            skillLevel: userData?['skill_level'] ?? 'beginner',
+          ),
+        ),
       );
     } else {
       Navigator.pushReplacement(
@@ -66,7 +73,6 @@ class _SplashRouterState extends State<SplashRouter> {
 
   @override
   Widget build(BuildContext context) {
-    // Splash screen sederhana saat cek sesi
     return const Scaffold(
       backgroundColor: Colors.white,
       body: Center(
@@ -89,11 +95,6 @@ class _SplashRouterState extends State<SplashRouter> {
           ],
         ),
       ),
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      home: const BerandaScreen(userName: "Jesika Rika"),
     );
   }
 }

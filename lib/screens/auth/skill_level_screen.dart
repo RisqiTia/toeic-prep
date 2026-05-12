@@ -132,17 +132,10 @@ class _SkillLevelScreenState extends State<SkillLevelScreen> {
               // ── Pilihan Level ──────────────────────────────
               Expanded(
                 child: ListView.separated(
-<<<<<<< HEAD
                   itemCount    : _levels.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder  : (_, i) {
                     final level    = _levels[i];
-=======
-                  itemCount: _levels.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) {
-                    final level = _levels[i];
->>>>>>> 59508cf8d76c3c588521492bf01512ca0ac9ce1a
                     final selected = _selectedLevel == level['value'];
 
                     return GestureDetector(
