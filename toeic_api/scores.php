@@ -8,20 +8,27 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
 
     $attempt_id = $data['attempt_id'] ?? null;
-    $answers    = $data['answers']    ?? []; // array of {question_id, user_answer, is_correct}
+    $answers    = $data['answers']    ?? []; // [{question_id, user_answer, is_correct}]
 
     if (!$attempt_id || empty($answers)) {
         echo json_encode(["status" => "error", "message" => "attempt_id dan answers diperlukan"]);
         exit();
     }
 
-    // Tandai attempt selesai
-    $stmt = $pdo->prepare("UPDATE test_attempts SET finished_at = NOW() WHERE id = ?");
+    // Ambil info attempt dari user_exam_results
+    $stmt = $pdo->prepare("SELECT * FROM user_exam_results WHERE id = ?");
     $stmt->execute([$attempt_id]);
+    $attempt = $stmt->fetch();
 
-    // Simpan semua jawaban user ke user_answers
+    if (!$attempt) {
+        echo json_encode(["status" => "error", "message" => "Attempt tidak ditemukan"]);
+        exit();
+    }
+
+    // Simpan jawaban user ke user_answers
+    // Kolom: exam_result_id, questions_id, user_answers, is_correct
     $stmtAns = $pdo->prepare("
-        INSERT INTO user_answers (attempt_id, question_id, user_answer, is_correct)
+        INSERT INTO user_answers (exam_result_id, questions_id, user_answers, is_correct)
         VALUES (?, ?, ?, ?)
     ");
     foreach ($answers as $ans) {
@@ -33,26 +40,18 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
     }
 
-    // Ambil info attempt (type-nya apa: latihan atau simulasi)
-    $stmt = $pdo->prepare("SELECT * FROM test_attempts WHERE id = ?");
-    $stmt->execute([$attempt_id]);
-    $attempt = $stmt->fetch();
+    $totalQuestions = count($answers);
+    $correctAnswers = count(array_filter($answers, fn($a) => $a['is_correct']));
+    $accuracy       = $totalQuestions > 0 ? round(($correctAnswers / $totalQuestions) * 100, 2) : 0;
 
-    // Hitung skor berdasarkan type
-    $totalQuestions  = count($answers);
-    $correctAnswers  = count(array_filter($answers, fn($a) => $a['is_correct']));
-    $accuracy        = $totalQuestions > 0 ? round(($correctAnswers / $totalQuestions) * 100, 2) : 0;
-
-    if ($attempt['type'] === 'simulasi') {
-        // Hitung listening score dan reading score secara terpisah
-        // Listening = part 1-4, Reading = part 5-7
+    // ── SIMULASI ──────────────────────────────────────────────
+    if ($attempt['exam_type'] === 'simulation') {
         $listeningCorrect = 0;
         $listeningTotal   = 0;
         $readingCorrect   = 0;
         $readingTotal     = 0;
 
         foreach ($answers as $ans) {
-            // Cek part_id soal ini
             $stmtQ = $pdo->prepare("
                 SELECT tp.type FROM questions q
                 JOIN toeic_parts tp ON q.part_id = tp.id
@@ -70,26 +69,42 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Konversi ke skala TOEIC (maks 495 per bagian)
+        // Skala TOEIC (maks 495 per bagian)
         $listeningScore = $listeningTotal > 0
             ? (int)round(($listeningCorrect / $listeningTotal) * 495) : 0;
         $readingScore   = $readingTotal > 0
             ? (int)round(($readingCorrect / $readingTotal) * 495) : 0;
         $totalScore     = $listeningScore + $readingScore;
 
-        // Simpan ke tabel scores
-        $stmt = $pdo->prepare("
-            INSERT INTO scores (attempt_id, listening_score, reading_score, total_score, accuracy)
-            VALUES (?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([$attempt_id, $listeningScore, $readingScore, $totalScore, $accuracy]);
+        // Tentukan kategori
+        $scoreCategory   = $totalScore < 400 ? 'rendah' : ($totalScore <= 700 ? 'sedang' : 'tinggi');
+        $listeningLevel  = $listeningScore < 165 ? 'lemah' : ($listeningScore <= 330 ? 'cukup' : 'kuat');
+        $readingLevel    = $readingScore < 165 ? 'lemah' : ($readingScore <= 330 ? 'cukup' : 'kuat');
 
-        // Ambil pesan motivasi dari tabel feedbacks
-        $motivation = getMotivation($pdo, $totalScore, $listeningScore, $readingScore);
+        // Update user_exam_results dengan hasil skor simulasi
+        $stmt = $pdo->prepare("
+            UPDATE user_exam_results SET
+                total_score      = ?,
+                listening_score  = ?,
+                reading_score    = ?,
+                score_category   = ?,
+                listening_level  = ?,
+                reading_level    = ?,
+                finished_at      = NOW()
+            WHERE id = ?
+        ");
+        $stmt->execute([
+            $totalScore, $listeningScore, $readingScore,
+            $scoreCategory, $listeningLevel, $readingLevel,
+            $attempt_id
+        ]);
+
+        // Ambil motivasi dari tabel feedbacks
+        $motivation = getMotivation($pdo, $scoreCategory, $listeningLevel, $readingLevel);
 
         echo json_encode([
             "status"          => "success",
-            "type"            => "simulasi",
+            "type"            => "simulation",
             "attempt_id"      => (int)$attempt_id,
             "total_questions" => $totalQuestions,
             "correct_answers" => $correctAnswers,
@@ -97,20 +112,26 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             "listening_score" => $listeningScore,
             "reading_score"   => $readingScore,
             "total_score"     => $totalScore,
+            "score_category"  => $scoreCategory,
+            "listening_level" => $listeningLevel,
+            "reading_level"   => $readingLevel,
             "motivation"      => $motivation
         ]);
 
+    // ── LATIHAN ───────────────────────────────────────────────
     } else {
-        // Latihan: cukup simpan accuracy saja, score = jumlah benar
+        // Untuk latihan: total_score = jumlah benar, listening/reading = 0
         $stmt = $pdo->prepare("
-            INSERT INTO scores (attempt_id, listening_score, reading_score, total_score, accuracy)
-            VALUES (?, 0, 0, ?, ?)
+            UPDATE user_exam_results SET
+                total_score  = ?,
+                finished_at  = NOW()
+            WHERE id = ?
         ");
-        $stmt->execute([$attempt_id, $correctAnswers, $accuracy]);
+        $stmt->execute([$correctAnswers, $attempt_id]);
 
         echo json_encode([
             "status"          => "success",
-            "type"            => "latihan",
+            "type"            => "practice",
             "attempt_id"      => (int)$attempt_id,
             "total_questions" => $totalQuestions,
             "correct_answers" => $correctAnswers,
@@ -128,14 +149,22 @@ elseif ($action === 'history') {
     }
 
     $stmt = $pdo->prepare("
-        SELECT ta.id AS attempt_id, ta.type, ta.started_at, ta.finished_at,
-               s.listening_score, s.reading_score, s.total_score, s.accuracy,
-               tp.name AS part_name
-        FROM test_attempts ta
-        LEFT JOIN scores s ON s.attempt_id = ta.id
-        LEFT JOIN toeic_parts tp ON ta.part_id = tp.id
-        WHERE ta.user_id = ?
-        ORDER BY ta.started_at DESC
+        SELECT
+            uer.id          AS attempt_id,
+            uer.exam_type,
+            uer.total_score,
+            uer.listening_score,
+            uer.reading_score,
+            uer.score_category,
+            uer.listening_level,
+            uer.reading_level,
+            uer.started_at,
+            uer.finished_at,
+            tp.name         AS part_name
+        FROM user_exam_results uer
+        LEFT JOIN toeic_parts tp ON uer.parts_id = tp.id
+        WHERE uer.users_id = ?
+        ORDER BY uer.created_at DESC
         LIMIT 20
     ");
     $stmt->execute([$user_id]);
@@ -147,48 +176,19 @@ else {
     echo json_encode(["status" => "error", "message" => "Action tidak dikenali"]);
 }
 
-// ─── FUNGSI AMBIL MOTIVASI DARI TABEL feedbacks ──────────────
-function getMotivation($pdo, $totalScore, $listeningScore, $readingScore) {
-    // Tentukan score_category
-    if ($totalScore < 400) {
-        $scoreCategory = 'rendah';
-    } elseif ($totalScore <= 700) {
-        $scoreCategory = 'sedang';
-    } else {
-        $scoreCategory = 'tinggi';
-    }
-
-    // Tentukan listening_level
-    if ($listeningScore < 165) {
-        $listeningLevel = 'lemah';
-    } elseif ($listeningScore <= 330) {
-        $listeningLevel = 'cukup';
-    } else {
-        $listeningLevel = 'kuat';
-    }
-
-    // Tentukan reading_level
-    if ($readingScore < 165) {
-        $readingLevel = 'lemah';
-    } elseif ($readingScore <= 330) {
-        $readingLevel = 'cukup';
-    } else {
-        $readingLevel = 'kuat';
-    }
-
-    // Cari motivasi yang cocok dari tabel feedbacks, ambil 1 secara acak
+// ─── FUNGSI MOTIVASI DARI TABEL feedbacks ─────────────────────
+function getMotivation($pdo, $scoreCategory, $listeningLevel, $readingLevel) {
     $stmt = $pdo->prepare("
         SELECT motivations FROM feedbacks
-        WHERE score_category = ?
-          AND listening_level = ?
-          AND reading_level = ?
+        WHERE score_category   = ?
+          AND listening_level  = ?
+          AND reading_level    = ?
         ORDER BY RAND()
         LIMIT 1
     ");
     $stmt->execute([$scoreCategory, $listeningLevel, $readingLevel]);
     $row = $stmt->fetch();
 
-    // Fallback kalau tidak ada yang cocok
     return $row['motivations'] ?? "Kerja bagus! Terus berlatih untuk meningkatkan skormu. Semangat!";
 }
 ?>
