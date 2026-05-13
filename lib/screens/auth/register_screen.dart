@@ -179,10 +179,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         setState(() => _obscureConfirm = !_obscureConfirm),
                   ),
                   validator: (v) {
-                    if (v!.isEmpty)
+                    if (v!.isEmpty) {
                       return 'Konfirmasi kata sandi tidak boleh kosong';
-                    if (v != _passController.text)
+                    }
+                    if (v != _passController.text) {
                       return 'Kata sandi tidak cocok';
+                    }
                     return null;
                   },
                 ),

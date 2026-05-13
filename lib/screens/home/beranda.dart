@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:toeic_prep/screens/home/materials.dart';
 import 'package:toeic_prep/screens/home/latihan.dart';
+import 'package:toeic_prep/screens/riwayat/riwayat_screen.dart';
 import 'package:toeic_prep/screens/profile/profil_screen.dart';
 import 'package:toeic_prep/widgets/widgets.dart';
 
@@ -44,7 +45,7 @@ class _BerandaScreenState extends State<BerandaScreen> {
     if (_currentIndex == 0) {
       return _buildBerandaContent();
     } else if (_currentIndex == 1) {
-      return const Center(child: Text('Riwayat Page'));
+      return const RiwayatScreen(); // ← terhubung ke halaman riwayat
     } else {
       return ProfilScreen(
         userId    : widget.userId,

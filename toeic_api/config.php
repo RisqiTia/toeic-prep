@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $host     = "localhost";
-$dbname   = "toeic_prep_db";   // <-- nama database baru
+$dbname   = "toeic_prep_db1";   // <-- nama database baru
 $username = "root";
 $password = "";
 
