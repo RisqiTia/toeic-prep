@@ -39,8 +39,8 @@ class _LatihanSoalState extends State<LatihanSoal> {
   // Untuk Part 3 & 4 — track audio yang sedang aktif
   String? _currentAudioFile;
 
-  static const String _mediaBaseUrl = 'http://10.43.164.156/toeic_dataset_generator';
-  static const String _apiBaseUrl   = 'http://10.43.164.156/toeic_prep_app/toeic_api';
+  static const String _mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
+  static const String _apiBaseUrl   = 'http://10.0.2.2/toeic_prep_app/toeic_api';
 
   bool get _isListening    => widget.partId >= 1 && widget.partId <= 4;
   bool get _hasImage       => widget.partId == 1;

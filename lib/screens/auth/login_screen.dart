@@ -63,6 +63,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (result['status'] == 'success') {
       final user = result['user'];
 
+      // Hapus sesi lama dulu sebelum simpan sesi baru
+      await UserSession.clear();
+
       // Simpan sesi user
       await UserSession.save(
         id        : user['id'],
