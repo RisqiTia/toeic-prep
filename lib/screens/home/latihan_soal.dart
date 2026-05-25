@@ -27,22 +27,23 @@ class _LatihanSoalState extends State<LatihanSoal> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
   bool _isLoadingAudio = false;
+  bool _isSubmitting = false; // ← loading saat submit
 
   int _currentIndex = 0;
   String? _selectedAnswer;
   final Map<int, String> _userAnswers = {};
 
+  // attempt_id dari server saat fetch soal
+  int? _attemptId;
+
   // Untuk Part 3 & 4 — track audio yang sedang aktif
   String? _currentAudioFile;
 
   static const String _mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
-  static const String _apiBaseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
+  static const String _apiBaseUrl   = 'http://10.0.2.2/toeic_prep_app/toeic_api';
 
-  // Part listening
-  bool get _isListening => widget.partId >= 1 && widget.partId <= 4;
-  // Part yang tampilkan gambar
-  bool get _hasImage => widget.partId == 1;
-  // Part yang sembunyikan teks opsi
+  bool get _isListening    => widget.partId >= 1 && widget.partId <= 4;
+  bool get _hasImage       => widget.partId == 1;
   bool get _hideOptionText => widget.partId == 1 || widget.partId == 2;
 
   @override
@@ -65,9 +66,11 @@ class _LatihanSoalState extends State<LatihanSoal> {
     super.dispose();
   }
 
+  // ─── Fetch Soal ──────────────────────────────────────────────────────────
+
   Future<List<LatihanSoalModel>> _fetchSoal() async {
-    final session = await UserSession.get();
-    final userId = session?['id'] ?? widget.userId;
+    final session    = await UserSession.get();
+    final userId     = session?['id'] ?? widget.userId;
     final skillLevel = session?['skill_level'] ?? 'beginner';
 
     try {
@@ -81,24 +84,22 @@ class _LatihanSoalState extends State<LatihanSoal> {
       final data = jsonDecode(response.body);
 
       if (data['status'] == 'success') {
+        // Simpan attempt_id dari server
+        _attemptId = data['attempt_id'];
+
         final List allSoal = data['data'];
 
-        // Filter berdasarkan level user
         final filtered = allSoal
             .where((e) => e['difficulty_level'] == skillLevel)
             .toList();
 
-        // Part 3 & 4 → 12 soal (grup utuh berdasarkan audio)
         if (widget.partId == 3 || widget.partId == 4) {
           return _groupAndLimit(filtered, targetSoal: 12);
         }
-
-        // Part 6 & 7 → 12 soal (grup utuh berdasarkan text paragraf)
         if (widget.partId == 6 || widget.partId == 7) {
           return _groupAndLimit(filtered, targetSoal: 12);
         }
 
-        // Part 1, 2, 5 → tepat 10 soal, acak
         filtered.shuffle();
         return filtered
             .take(10)
@@ -112,7 +113,6 @@ class _LatihanSoalState extends State<LatihanSoal> {
     }
   }
 
-  // Kelompokkan berdasarkan audio_file, ambil grup utuh mendekati targetSoal
   List<LatihanSoalModel> _groupAndLimit(
     List rawList, {
     required int targetSoal,
@@ -122,52 +122,111 @@ class _LatihanSoalState extends State<LatihanSoal> {
     for (final soal in rawList) {
       String groupKey = '';
 
-      // =========================
-      // PART 3 & 4 → berdasarkan audio
-      // =========================
       if (widget.partId == 3 || widget.partId == 4) {
         groupKey = soal['audio_file'] ?? '';
-      }
-      // =========================
-      // PART 6 & 7 → berdasarkan awal question_text
-      // =========================
-      else if (widget.partId == 6 || widget.partId == 7) {
+      } else if (widget.partId == 6 || widget.partId == 7) {
         String question = soal['question_text'] ?? '';
-
         groupKey = question.length > 50 ? question.substring(0, 50) : question;
       }
 
       grouped.putIfAbsent(groupKey, () => []).add(soal);
     }
 
-    // acak grup
     final groupKeys = grouped.keys.toList()..shuffle();
-
-    final result = <LatihanSoalModel>[];
+    final result    = <LatihanSoalModel>[];
 
     for (final key in groupKeys) {
-      final group = grouped[key]!;
-
-      // TAMBAHKAN SELURUH GRUP
-      result.addAll(group.map((e) => LatihanSoalModel.fromJson(e)));
-
-      // stop jika target tercapai
-      if (result.length >= targetSoal) {
-        break;
-      }
+      result.addAll(grouped[key]!.map((e) => LatihanSoalModel.fromJson(e)));
+      if (result.length >= targetSoal) break;
     }
 
     return result;
   }
 
+  // ─── Submit Jawaban ke Server ─────────────────────────────────────────────
+
+  Future<void> _submitAnswers(List<LatihanSoalModel> soalList) async {
+    if (_attemptId == null) {
+      // Fallback: langsung hitung skor lokal jika tidak ada attempt_id
+      _goToResult(soalList, _calculateScore(soalList));
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      // Susun array jawaban
+      final answers = <Map<String, dynamic>>[];
+      for (int i = 0; i < soalList.length; i++) {
+        final soal       = soalList[i];
+        final userAnswer = _userAnswers[i] ?? '';
+        final isCorrect  = userAnswer == soal.correctAnswer;
+
+        answers.add({
+          'question_id': soal.id,
+          'user_answer': userAnswer,
+          'is_correct' : isCorrect,
+        });
+      }
+
+      final response = await http.post(
+        Uri.parse('$_apiBaseUrl/scores.php?action=save'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'attempt_id': _attemptId,
+          'answers'   : answers,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (data['status'] == 'success') {
+        // Hitung skor dari akurasi yang dikembalikan server
+        final accuracy = (data['accuracy'] as num?)?.toInt()
+            ?? _calculateScore(soalList);
+        _goToResult(soalList, accuracy);
+      } else {
+        // Kalau server error, tetap tampilkan hasil lokal
+        _goToResult(soalList, _calculateScore(soalList));
+      }
+    } catch (e) {
+      debugPrint('❌ Submit error: $e');
+      // Tetap lanjutkan meski gagal simpan
+      _goToResult(soalList, _calculateScore(soalList));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  void _goToResult(List<LatihanSoalModel> soalList, int score) {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultScreen(score: score),
+      ),
+    );
+  }
+
+  // ─── Hitung Skor Lokal (fallback) ────────────────────────────────────────
+
+  int _calculateScore(List<LatihanSoalModel> soalList) {
+    int correct = 0;
+    for (int i = 0; i < soalList.length; i++) {
+      if (_userAnswers[i] == soalList[i].correctAnswer) correct++;
+    }
+    return ((correct / soalList.length) * 100).round();
+  }
+
+  // ─── Audio ───────────────────────────────────────────────────────────────
+
   Future<void> _toggleAudio(String audioFile) async {
-    // Jika ganti audio (soal berbeda)
     if (_currentAudioFile != audioFile) {
       await _audioPlayer.stop();
       _currentAudioFile = audioFile;
       setState(() {
-        _isPlaying = false;
-        _isLoadingAudio = true;
+        _isPlaying       = false;
+        _isLoadingAudio  = true;
       });
       try {
         await _audioPlayer.setSourceUrl('$_mediaBaseUrl/$audioFile');
@@ -180,7 +239,6 @@ class _LatihanSoalState extends State<LatihanSoal> {
       return;
     }
 
-    // Toggle play/pause audio yang sama
     if (_isPlaying) {
       await _audioPlayer.pause();
       setState(() => _isPlaying = false);
@@ -196,14 +254,15 @@ class _LatihanSoalState extends State<LatihanSoal> {
     }
   }
 
+  // ─── Navigasi Soal ───────────────────────────────────────────────────────
+
   void _goNext(List<LatihanSoalModel> soalList) {
     if (_currentIndex < soalList.length - 1) {
       final nextSoal = soalList[_currentIndex + 1];
-      // Jika soal berikutnya audio berbeda → stop audio
       if (nextSoal.audioFile != _currentAudioFile) {
         _audioPlayer.stop();
         setState(() {
-          _isPlaying = false;
+          _isPlaying        = false;
           _currentAudioFile = null;
         });
       }
@@ -225,33 +284,12 @@ class _LatihanSoalState extends State<LatihanSoal> {
 
   void _selectAnswer(String answer) {
     setState(() {
-      _selectedAnswer = answer;
+      _selectedAnswer          = answer;
       _userAnswers[_currentIndex] = answer;
     });
   }
 
-  int _calculateScore(List<LatihanSoalModel> soalList) {
-    int correct = 0;
-
-    for (int i = 0; i < soalList.length; i++) {
-      final soal = soalList[i];
-
-      // Jawaban user
-      final userAnswer = _userAnswers[i];
-
-      // Jawaban benar dari database
-      final correctAnswer = soal.correctAnswer;
-
-      if (userAnswer == correctAnswer) {
-        correct++;
-      }
-    }
-
-    // Konversi ke nilai 0-100
-    int finalScore = ((correct / soalList.length) * 100).round();
-
-    return finalScore;
-  }
+  // ─── Build ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +337,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
           return SafeArea(
             child: Column(
               children: [
-                // ── Top Bar ──────────────────────────────
+                // ── Top Bar ────────────────────────────────────────────────
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -345,14 +383,14 @@ class _LatihanSoalState extends State<LatihanSoal> {
                   ),
                 ),
 
-                // ── Konten Soal ──────────────────────────
+                // ── Konten Soal ────────────────────────────────────────────
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── GAMBAR (Part 1 saja)
+                        // ── GAMBAR (Part 1)
                         if (_hasImage &&
                             soal.imageFile != null &&
                             soal.imageFile!.isNotEmpty)
@@ -444,9 +482,8 @@ class _LatihanSoalState extends State<LatihanSoal> {
                                             color: _isPlaying
                                                 ? const Color(0xFF2563EB)
                                                 : Colors.grey[400],
-                                            borderRadius: BorderRadius.circular(
-                                              2,
-                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(2),
                                           ),
                                         ),
                                       ),
@@ -462,9 +499,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
                             soal.audioFile!.isNotEmpty)
                           const SizedBox(height: 20),
 
-                        // ── TEKS SOAL
-                        // Part 1 & 2: sembunyikan teks soal
-                        // Part 3-7: tampilkan teks soal
+                        // ── TEKS SOAL (Part 3-7)
                         if (!_hideOptionText && soal.questionText.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 16),
@@ -497,7 +532,6 @@ class _LatihanSoalState extends State<LatihanSoal> {
                               margin: const EdgeInsets.only(bottom: 12),
                               padding: EdgeInsets.symmetric(
                                 horizontal: 16,
-                                // Jika hide text, padding lebih kecil
                                 vertical: _hideOptionText ? 12 : 16,
                               ),
                               decoration: BoxDecoration(
@@ -514,7 +548,6 @@ class _LatihanSoalState extends State<LatihanSoal> {
                               ),
                               child: Row(
                                 children: [
-                                  // Bulatan A/B/C/D
                                   Container(
                                     width: 36,
                                     height: 36,
@@ -537,8 +570,6 @@ class _LatihanSoalState extends State<LatihanSoal> {
                                       ),
                                     ),
                                   ),
-
-                                  // Teks opsi — hanya tampil untuk Part 3-7
                                   if (!_hideOptionText) ...[
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -561,7 +592,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
                   ),
                 ),
 
-                // ── Bottom Button ─────────────────────────
+                // ── Bottom Button ──────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -575,7 +606,9 @@ class _LatihanSoalState extends State<LatihanSoal> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: _currentIndex > 0 ? () => _goPrev() : null,
+                          onPressed: _currentIndex > 0 && !_isSubmitting
+                              ? () => _goPrev()
+                              : null,
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -596,23 +629,16 @@ class _LatihanSoalState extends State<LatihanSoal> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (_currentIndex < soalList.length - 1) {
-                              _goNext(soalList);
-                            } else {
-                              // Hitung skor
-                              int finalScore = _calculateScore(soalList);
-
-                              // Pindah ke halaman hasil
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      ResultScreen(score: finalScore),
-                                ),
-                              );
-                            }
-                          },
+                          onPressed: _isSubmitting
+                              ? null
+                              : () {
+                                  if (_currentIndex < soalList.length - 1) {
+                                    _goNext(soalList);
+                                  } else {
+                                    // Soal terakhir → submit ke server
+                                    _submitAnswers(soalList);
+                                  }
+                                },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2563EB),
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -621,16 +647,25 @@ class _LatihanSoalState extends State<LatihanSoal> {
                             ),
                             elevation: 0,
                           ),
-                          child: Text(
-                            _currentIndex < soalList.length - 1
-                                ? 'Selanjutnya'
-                                : 'Selesai',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  _currentIndex < soalList.length - 1
+                                      ? 'Selanjutnya'
+                                      : 'Selesai',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
                     ],

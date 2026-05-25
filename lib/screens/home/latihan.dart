@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:toeic_prep/models/latihan_model.dart';
 import 'package:toeic_prep/widgets/materi_card.dart';
 import 'package:toeic_prep/widgets/header.dart';
+import 'package:toeic_prep/screens/home/latihan_soal.dart';
+import 'package:toeic_prep/services/user_session.dart';
 
 class LatihanScreen extends StatelessWidget {
   const LatihanScreen({super.key});
@@ -11,10 +13,7 @@ class LatihanScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          // Header
           Header(title: 'Latihan TOEIC'),
-
-          // Latihan List
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -26,14 +25,22 @@ class LatihanScreen extends StatelessWidget {
                   title: latihan.title,
                   description: latihan.description,
                   icon: latihan.icon,
-                  onTap: () {
-                    // TODO: nanti arahkan ke halaman soal latihan
-                    // Navigator.push(context, MaterialPageRoute(
-                    //   builder: (context) => LatihanSoalScreen(
-                    //     partId: latihan.partNumber,
-                    //     partName: latihan.title,
-                    //   ),
-                    // ));
+                  onTap: () async {
+                    final session = await UserSession.get();
+                    final userId = session?['id'] ?? 0;
+
+                    if (context.mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => LatihanSoal(
+                            partId: latihan.partNumber,
+                            partName: latihan.title,
+                            userId: userId,
+                          ),
+                        ),
+                      );
+                    }
                   },
                 );
               },

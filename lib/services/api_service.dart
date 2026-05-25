@@ -6,8 +6,8 @@ class ApiService {
   // Kalau pakai emulator Android  → 10.0.2.2
   // Kalau pakai HP fisik          → cek IP WiFi kamu (misal: 192.168.1.5)
   // Kalau pakai browser/web       → localhost
-  //static const String _baseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
   static const String _baseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
+  //static const String _baseUrl = 'http://10.43.164.156/toeic_prep_app/toeic_api';
 
   // ─── AUTH ─────────────────────────────────────────────────────
 
