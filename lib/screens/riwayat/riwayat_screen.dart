@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/services/user_session.dart';
+import 'package:toeic_prep/services/api_service.dart';
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 
@@ -32,16 +33,16 @@ class RiwayatItem {
 
   factory RiwayatItem.fromJson(Map<String, dynamic> json) {
     return RiwayatItem(
-      id:             json['id'] ?? 0,
-      type:           json['type'] ?? 'latihan',
-      title:          json['title'] ?? '',
-      date:           json['date'] ?? '',
-      score:          (json['score'] as num?)?.toInt() ?? 0,
-      scoreLabel:     json['score_label'] ?? 'Skor',
-      partName:       json['part_name'] ?? '',
+      id: json['id'] ?? 0,
+      type: json['type'] ?? 'latihan',
+      title: json['title'] ?? '',
+      date: json['date'] ?? '',
+      score: (json['score'] as num?)?.toInt() ?? 0,
+      scoreLabel: json['score_label'] ?? 'Skor',
+      partName: json['part_name'] ?? '',
       listeningScore: (json['listening_score'] as num?)?.toInt(),
-      readingScore:   (json['reading_score'] as num?)?.toInt(),
-      scoreCategory:  json['score_category'],
+      readingScore: (json['reading_score'] as num?)?.toInt(),
+      scoreCategory: json['score_category'],
     );
   }
 }
@@ -56,9 +57,6 @@ class RiwayatScreen extends StatefulWidget {
 }
 
 class _RiwayatScreenState extends State<RiwayatScreen> {
-  static const String _apiBaseUrl =
-      'http://10.0.2.2/toeic_prep_app/toeic_api';
-
   String _activeFilter = 'Semua';
   List<RiwayatItem> _allRiwayat = [];
   int _lastSimulasiScore = 0;
@@ -82,7 +80,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
       final userId = session?['id'] ?? 0;
 
       final response = await http.get(
-        Uri.parse('$_apiBaseUrl/riwayat.php?user_id=$userId'),
+        Uri.parse('${ApiService.apiBaseUrl}/riwayat.php?user_id=$userId'),
       );
 
       // CEK STATUS RESPONSE
@@ -106,9 +104,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
       if (data['status'] == 'success') {
         final List rawList = data['data'] ?? [];
 
-        final items = rawList
-            .map((e) => RiwayatItem.fromJson(e))
-            .toList();
+        final items = rawList.map((e) => RiwayatItem.fromJson(e)).toList();
 
         setState(() {
           _allRiwayat = items;
@@ -117,7 +113,6 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
           _isLoading = false;
         });
       }
-
       // JIKA DATA KOSONG
       else if (data['status'] == 'empty') {
         setState(() {
@@ -126,7 +121,6 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
           _isLoading = false;
         });
       }
-
       // ERROR LAIN
       else {
         throw Exception(data['message'] ?? 'Gagal mengambil riwayat');
@@ -183,32 +177,32 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _error != null
-                      ? _buildError()
-                      : RefreshIndicator(
-                          onRefresh: _fetchRiwayat,
-                          child: ListView(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                            children: [
-                              // ── Card Skor Simulasi Terakhir ────────────
-                              _buildScoreCard(),
-                              const SizedBox(height: 20),
+                  ? _buildError()
+                  : RefreshIndicator(
+                      onRefresh: _fetchRiwayat,
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        children: [
+                          // ── Card Skor Simulasi Terakhir ────────────
+                          _buildScoreCard(),
+                          const SizedBox(height: 20),
 
-                              // ── Filter Chips ───────────────────────────
-                              _buildFilterRow(),
-                              const SizedBox(height: 16),
+                          // ── Filter Chips ───────────────────────────
+                          _buildFilterRow(),
+                          const SizedBox(height: 16),
 
-                              // ── List Riwayat ───────────────────────────
-                              if (_filteredRiwayat.isEmpty)
-                                _buildEmpty()
-                              else
-                                ..._filteredRiwayat
-                                    .map((item) => _buildRiwayatCard(item)),
+                          // ── List Riwayat ───────────────────────────
+                          if (_filteredRiwayat.isEmpty)
+                            _buildEmpty()
+                          else
+                            ..._filteredRiwayat.map(
+                              (item) => _buildRiwayatCard(item),
+                            ),
 
-                              const SizedBox(height: 16),
-                            ],
-                          ),
-                        ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -295,15 +289,12 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
             onTap: () => setState(() => _activeFilter = f),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
                 color: isActive ? const Color(0xFF2563EB) : Colors.white,
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: isActive
-                      ? const Color(0xFF2563EB)
-                      : Colors.grey[300]!,
+                  color: isActive ? const Color(0xFF2563EB) : Colors.grey[300]!,
                 ),
               ),
               child: Text(
@@ -346,15 +337,11 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: isSimulasi
-                  ? const Color(0xFF2563EB)
-                  : Colors.grey[100],
+              color: isSimulasi ? const Color(0xFF2563EB) : Colors.grey[100],
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              isSimulasi
-                  ? Icons.timer_outlined
-                  : Icons.edit_note_rounded,
+              isSimulasi ? Icons.timer_outlined : Icons.edit_note_rounded,
               color: isSimulasi ? Colors.white : Colors.grey[600],
               size: 22,
             ),
@@ -377,8 +364,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                 const SizedBox(height: 3),
                 Text(
                   item.date,
-                  style:
-                      TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -389,9 +375,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                isSimulasi
-                    ? item.score.toString()
-                    : '${item.score}%',
+                isSimulasi ? item.score.toString() : '${item.score}%',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -400,8 +384,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
               ),
               Text(
                 item.scoreLabel,
-                style:
-                    TextStyle(fontSize: 11, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
               ),
             ],
           ),
@@ -433,8 +416,10 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Coba Lagi',
-                  style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Coba Lagi',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -453,8 +438,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
             Text(
               'Belum ada riwayat'
               '${_activeFilter == 'Semua' ? '' : ' $_activeFilter'}',
-              style:
-                  TextStyle(fontSize: 14, color: Colors.grey[400]),
+              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
             ),
           ],
         ),
