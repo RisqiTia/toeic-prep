@@ -3,6 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:toeic_prep/models/material_detail_model.dart';
 import 'package:toeic_prep/services/api_service.dart';
 import 'package:toeic_prep/widgets/header.dart';
+import 'package:toeic_prep/services/api_service.dart';
 
 class MaterialDetailScreen extends StatefulWidget {
   final int partId;
@@ -25,8 +26,6 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
   bool _isLoadingAudio = false;
   Map<String, String> _jawabanMulti = {};
   Map<String, String> _pembahasanMulti = {};
-
-  static const String _mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
 
   @override
   void initState() {
@@ -65,7 +64,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
       setState(() => _isPlaying = false);
     } else {
       setState(() => _isLoadingAudio = true);
-      final url = '$_mediaBaseUrl/$audioFile';
+      final url = '${ApiService.mediaBaseUrl}/$audioFile';
       try {
         await _audioPlayer.setSourceUrl(url);
         await _audioPlayer.resume();
@@ -100,7 +99,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen> {
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Image.network(
-            '$_mediaBaseUrl/${material.imageFile}',
+            '${ApiService.mediaBaseUrl}/${material.imageFile}',
             width: double.infinity,
             fit: BoxFit.cover,
             loadingBuilder: (context, child, progress) {

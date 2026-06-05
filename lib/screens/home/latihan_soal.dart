@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
 import 'package:toeic_prep/services/user_session.dart';
 import 'package:toeic_prep/screens/home/result_screen.dart';
+import 'package:toeic_prep/services/api_service.dart';
 
 class LatihanSoal extends StatefulWidget {
   final int partId;
@@ -39,11 +40,8 @@ class _LatihanSoalState extends State<LatihanSoal> {
   // Untuk Part 3 & 4 — track audio yang sedang aktif
   String? _currentAudioFile;
 
-  static const String _mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
-  static const String _apiBaseUrl   = 'http://10.0.2.2/toeic_prep_app/toeic_api';
-
-  bool get _isListening    => widget.partId >= 1 && widget.partId <= 4;
-  bool get _hasImage       => widget.partId == 1;
+  bool get _isListening => widget.partId >= 1 && widget.partId <= 4;
+  bool get _hasImage => widget.partId == 1;
   bool get _hideOptionText => widget.partId == 1 || widget.partId == 2;
 
   @override
@@ -69,14 +67,14 @@ class _LatihanSoalState extends State<LatihanSoal> {
   // ─── Fetch Soal ──────────────────────────────────────────────────────────
 
   Future<List<LatihanSoalModel>> _fetchSoal() async {
-    final session    = await UserSession.get();
-    final userId     = session?['id'] ?? widget.userId;
+    final session = await UserSession.get();
+    final userId = session?['id'] ?? widget.userId;
     final skillLevel = session?['skill_level'] ?? 'beginner';
 
     try {
       final response = await http.get(
         Uri.parse(
-          '$_apiBaseUrl/questions.php'
+          '${ApiService.apiBaseUrl}/questions.php'
           '?action=practice&part_id=${widget.partId}&user_id=$userId',
         ),
       );
@@ -126,14 +124,16 @@ class _LatihanSoalState extends State<LatihanSoal> {
         groupKey = soal['audio_file'] ?? '';
       } else if (widget.partId == 6 || widget.partId == 7) {
         String question = soal['question_text'] ?? '';
-        groupKey = question.length > 50 ? question.substring(0, 50) : question;
+        groupKey = question.length > 200
+            ? question.substring(0, 200)
+            : question;
       }
 
       grouped.putIfAbsent(groupKey, () => []).add(soal);
     }
 
     final groupKeys = grouped.keys.toList()..shuffle();
-    final result    = <LatihanSoalModel>[];
+    final result = <LatihanSoalModel>[];
 
     for (final key in groupKeys) {
       result.addAll(grouped[key]!.map((e) => LatihanSoalModel.fromJson(e)));
@@ -158,32 +158,29 @@ class _LatihanSoalState extends State<LatihanSoal> {
       // Susun array jawaban
       final answers = <Map<String, dynamic>>[];
       for (int i = 0; i < soalList.length; i++) {
-        final soal       = soalList[i];
+        final soal = soalList[i];
         final userAnswer = _userAnswers[i] ?? '';
-        final isCorrect  = userAnswer == soal.correctAnswer;
+        final isCorrect = userAnswer == soal.correctAnswer;
 
         answers.add({
           'question_id': soal.id,
           'user_answer': userAnswer,
-          'is_correct' : isCorrect,
+          'is_correct': isCorrect,
         });
       }
 
       final response = await http.post(
-        Uri.parse('$_apiBaseUrl/scores.php?action=save'),
+        Uri.parse('${ApiService.apiBaseUrl}/scores.php?action=save'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'attempt_id': _attemptId,
-          'answers'   : answers,
-        }),
+        body: jsonEncode({'attempt_id': _attemptId, 'answers': answers}),
       );
 
       final data = jsonDecode(response.body);
 
       if (data['status'] == 'success') {
         // Hitung skor dari akurasi yang dikembalikan server
-        final accuracy = (data['accuracy'] as num?)?.toInt()
-            ?? _calculateScore(soalList);
+        final accuracy =
+            (data['accuracy'] as num?)?.toInt() ?? _calculateScore(soalList);
         _goToResult(soalList, accuracy);
       } else {
         // Kalau server error, tetap tampilkan hasil lokal
@@ -202,9 +199,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => ResultScreen(score: score),
-      ),
+      MaterialPageRoute(builder: (_) => ResultScreen(score: score)),
     );
   }
 
@@ -225,11 +220,13 @@ class _LatihanSoalState extends State<LatihanSoal> {
       await _audioPlayer.stop();
       _currentAudioFile = audioFile;
       setState(() {
-        _isPlaying       = false;
-        _isLoadingAudio  = true;
+        _isPlaying = false;
+        _isLoadingAudio = true;
       });
       try {
-        await _audioPlayer.setSourceUrl('$_mediaBaseUrl/$audioFile');
+        await _audioPlayer.setSourceUrl(
+          '${ApiService.mediaBaseUrl}/$audioFile',
+        );
         await _audioPlayer.resume();
         setState(() => _isLoadingAudio = false);
       } catch (e) {
@@ -262,7 +259,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
       if (nextSoal.audioFile != _currentAudioFile) {
         _audioPlayer.stop();
         setState(() {
-          _isPlaying        = false;
+          _isPlaying = false;
           _currentAudioFile = null;
         });
       }
@@ -284,7 +281,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
 
   void _selectAnswer(String answer) {
     setState(() {
-      _selectedAnswer          = answer;
+      _selectedAnswer = answer;
       _userAnswers[_currentIndex] = answer;
     });
   }
@@ -397,7 +394,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Image.network(
-                              '$_mediaBaseUrl/${soal.imageFile}',
+                              '${ApiService.mediaBaseUrl}/${soal.imageFile}',
                               width: double.infinity,
                               fit: BoxFit.cover,
                               loadingBuilder: (context, child, progress) {
@@ -482,8 +479,9 @@ class _LatihanSoalState extends State<LatihanSoal> {
                                             color: _isPlaying
                                                 ? const Color(0xFF2563EB)
                                                 : Colors.grey[400],
-                                            borderRadius:
-                                                BorderRadius.circular(2),
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
                                           ),
                                         ),
                                       ),
