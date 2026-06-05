@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
 import 'package:toeic_prep/services/user_session.dart';
+import 'package:toeic_prep/services/api_service.dart';
 
 class SimulasiResultScreen extends StatefulWidget {
   final int totalScore;
@@ -11,6 +12,7 @@ class SimulasiResultScreen extends StatefulWidget {
   final int userId;
   final List<LatihanSoalModel> soalList;
   final Map<int, String> userAnswers;
+  final String motivation;
 
   const SimulasiResultScreen({
     super.key,
@@ -20,6 +22,7 @@ class SimulasiResultScreen extends StatefulWidget {
     required this.userId,
     required this.soalList,
     required this.userAnswers,
+    required this.motivation,
   });
 
   @override
@@ -27,8 +30,7 @@ class SimulasiResultScreen extends StatefulWidget {
 }
 
 class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
-  static const String _apiBaseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
-
+  String _feedbackText = '';
   String _currentLevel = '';
   String _newLevel = '';
   bool _levelUp = false;
@@ -37,6 +39,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
   @override
   void initState() {
     super.initState();
+    _feedbackText = widget.motivation;
     _processResult();
   }
 
@@ -44,7 +47,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
     final session = await UserSession.get();
     _currentLevel = session?['skill_level'] ?? 'beginner';
 
-    if (widget.totalScore >= 500) {
+    if (widget.totalScore >= 700) {
       _newLevel = _getNextLevel(_currentLevel);
       _levelUp = _newLevel != _currentLevel;
       if (_levelUp) await _updateLevel(_newLevel, session);
@@ -69,7 +72,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
     final email = session?['email'] ?? '';
     try {
       await http.post(
-        Uri.parse('$_apiBaseUrl/auth.php?action=update_skill'),
+        Uri.parse('${ApiService.apiBaseUrl}/auth.php?action=update_skill'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'skill_level': newLevel}),
       );
@@ -81,7 +84,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
         rememberMe: session?['remember_me'] ?? false,
       );
     } catch (e) {
-      debugPrint('❌ Update level error: $e');
+      debugPrint('Update level error: $e');
     }
   }
 
@@ -109,13 +112,6 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
       default:
         return Colors.grey;
     }
-  }
-
-  String _getFeedback() {
-    if (widget.totalScore >= 500) {
-      return 'Selamat! Kamu berhasil meraih nilai di atas rata-rata dan naik ke level berikutnya. Terus tingkatkan kemampuanmu untuk hasil yang lebih optimal.';
-    }
-    return 'Skor ini menunjukkan kemampuan Anda saat ini. Teruslah berlatih secara teratur untuk meningkatkan keterampilan bahasa Inggris Anda dan meraih hasil yang lebih baik!';
   }
 
   @override
@@ -179,9 +175,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                       style: TextStyle(
                         fontSize: 64,
                         fontWeight: FontWeight.bold,
-                        color: widget.totalScore >= 500
-                            ? const Color(0xFF2563EB)
-                            : Colors.orange,
+                        color: const Color(0xFF2563EB),
                         height: 1,
                       ),
                     ),
@@ -192,42 +186,63 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                     const SizedBox(height: 12),
 
                     // Badge level
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _levelUp
-                            ? _getLevelColor(displayLevel)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _getLevelColor(displayLevel)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_levelUp) ...[
-                            const Icon(
-                              Icons.arrow_upward,
-                              color: Colors.white,
-                              size: 14,
+                    _levelUp
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 6,
                             ),
-                            const SizedBox(width: 4),
-                          ],
-                          Text(
-                            _getLevelLabel(displayLevel),
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: _levelUp
-                                  ? Colors.white
-                                  : _getLevelColor(displayLevel),
+                            decoration: BoxDecoration(
+                              color: _getLevelColor(displayLevel),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _getLevelColor(
+                                    displayLevel,
+                                  ).withValues(alpha: 0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.arrow_circle_up,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _getLevelLabel(displayLevel),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _getLevelColor(displayLevel),
+                              ),
+                            ),
+                            child: Text(
+                              _getLevelLabel(displayLevel),
+                              style: TextStyle(
+                                color: _getLevelColor(displayLevel),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -277,7 +292,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                   ],
                 ),
                 child: Text(
-                  _getFeedback(),
+                  _feedbackText,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[600],
@@ -318,7 +333,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
               const SizedBox(height: 12),
 
               // ── Tombol Uji Ulang (jika skor < 500) ──────
-              if (!_levelUp)
+              if (widget.totalScore < 500)
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(

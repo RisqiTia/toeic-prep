@@ -6,8 +6,12 @@ class ApiService {
   // Kalau pakai emulator Android  → 10.0.2.2
   // Kalau pakai HP fisik          → cek IP WiFi kamu (misal: 192.168.1.5)
   // Kalau pakai browser/web       → localhost
-  static const String _baseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
-  //static const String _baseUrl = 'http://10.43.164.156/toeic_prep_app/toeic_api';
+  // static const String apiBaseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
+  // static const String mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
+  static const String apiBaseUrl =
+      'http://10.208.239.22/toeic_prep_app/toeic_api';
+  static const String mediaBaseUrl =
+      'http://10.208.239.22/toeic_dataset_generator';
 
   // ─── AUTH ─────────────────────────────────────────────────────
 
@@ -18,7 +22,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/auth.php?action=register'),
+        Uri.parse('$apiBaseUrl/auth.php?action=register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'name': name, 'email': email, 'password': password}),
       );
@@ -37,7 +41,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/auth.php?action=login'),
+        Uri.parse('$apiBaseUrl/auth.php?action=login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );
@@ -57,7 +61,7 @@ class ApiService {
   }) async {
     try {
       final res = await http.post(
-        Uri.parse('$_baseUrl/auth.php?action=update_name'),
+        Uri.parse('$apiBaseUrl/auth.php?action=update_name'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'user_id': userId, 'name': newName}),
       );
@@ -75,7 +79,7 @@ class ApiService {
   }) async {
     try {
       final res = await http.post(
-        Uri.parse('$_baseUrl/auth.php?action=update_password'),
+        Uri.parse('$apiBaseUrl/auth.php?action=update_password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': userId,
@@ -94,7 +98,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getParts() async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/materials.php?action=parts'),
+        Uri.parse('$apiBaseUrl/materials.php?action=parts'),
       );
       return jsonDecode(response.body);
     } catch (e) {
@@ -105,7 +109,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getMaterialsByPart(int partId) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/materials.php?action=by_part&part_id=$partId'),
+        Uri.parse('$apiBaseUrl/materials.php?action=by_part&part_id=$partId'),
       );
       return jsonDecode(response.body);
     } catch (e) {
@@ -118,7 +122,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getPracticeQuestions(int partId) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/questions.php?action=practice&part_id=$partId'),
+        Uri.parse('$apiBaseUrl/questions.php?action=practice&part_id=$partId'),
       );
       return jsonDecode(response.body);
     } catch (e) {
@@ -131,7 +135,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getSimulationQuestions() async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/questions.php?action=simulation'),
+        Uri.parse('$apiBaseUrl/questions.php?action=simulation'),
       );
       return jsonDecode(response.body);
     } catch (e) {
@@ -148,7 +152,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/scores.php?action=save_simulation'),
+        Uri.parse('$apiBaseUrl/scores.php?action=save_simulation'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': userId,
@@ -165,7 +169,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getScoreHistory(int userId) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/scores.php?action=history&user_id=$userId'),
+        Uri.parse('$apiBaseUrl/scores.php?action=history&user_id=$userId'),
       );
       return jsonDecode(response.body);
     } catch (e) {
@@ -179,7 +183,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/auth.php?action=update_skill'),
+        Uri.parse('$apiBaseUrl/auth.php?action=update_skill'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'skill_level': skillLevel}),
       );

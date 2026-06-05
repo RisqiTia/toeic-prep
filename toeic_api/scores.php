@@ -1,6 +1,9 @@
 <?php
 require_once 'config.php';
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 $action = $_GET['action'] ?? '';
 
 // ─── SIMPAN JAWABAN + HITUNG SKOR ────────────────────────────
@@ -70,18 +73,34 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Skala TOEIC (maks 495 per bagian)
-        $listeningScore = $listeningTotal > 0
-            ? (int)round(($listeningCorrect / $listeningTotal) * 495) : 0;
-        $readingScore   = $readingTotal > 0
-            ? (int)round(($readingCorrect / $readingTotal) * 495) : 0;
+        $listeningScore = $listeningCorrect * 5;
+        $readingScore   = $readingCorrect * 4;
         $totalScore     = $listeningScore + $readingScore;
 
         // Tentukan kategori
-        $scoreCategory   = $totalScore < 400 ? 'rendah' : ($totalScore <= 700 ? 'sedang' : 'tinggi');
-        $listeningLevel  = $listeningScore < 165 ? 'lemah' : ($listeningScore <= 330 ? 'cukup' : 'kuat');
+        if ($totalScore < 500) {
+            $scoreCategory = 'rendah';
+        } elseif ($totalScore < 700) {
+            $scoreCategory = 'sedang';
+        } else {
+            $scoreCategory = 'tinggi';
+        }
+        $listeningLevel  = $listeningScore < 167 ? 'lemah' : ($listeningScore <= 334 ? 'cukup' : 'kuat');
         $readingLevel    = $readingScore < 165 ? 'lemah' : ($readingScore <= 330 ? 'cukup' : 'kuat');
 
         // Update user_exam_results dengan hasil skor simulasi
+        $stmtDurasi = $pdo->prepare("
+            SELECT TIMESTAMPDIFF(
+                MINUTE,
+                started_at,
+                NOW()
+            )
+            FROM user_exam_results
+            WHERE id = ?
+        ");
+        $stmtDurasi->execute([$attempt_id]);
+
+        $durationMinutes = (int)$stmtDurasi->fetchColumn();
         $stmt = $pdo->prepare("
             UPDATE user_exam_results SET
                 total_score      = ?,
@@ -90,12 +109,18 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 score_category   = ?,
                 listening_level  = ?,
                 reading_level    = ?,
+                duration_minutes = ?,
                 finished_at      = NOW()
             WHERE id = ?
         ");
         $stmt->execute([
-            $totalScore, $listeningScore, $readingScore,
-            $scoreCategory, $listeningLevel, $readingLevel,
+            $totalScore, 
+            $listeningScore, 
+            $readingScore,
+            $scoreCategory, 
+            $listeningLevel, 
+            $readingLevel, 
+            $durationMinutes,
             $attempt_id
         ]);
 
