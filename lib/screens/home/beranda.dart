@@ -248,7 +248,7 @@ class _SimulasiConfirmDialog extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       side: BorderSide(
-                        color: const Color.fromARGB(255, 196, 194, 194)!,
+                        color: const Color.fromARGB(255, 196, 194, 194),
                       ),
                     ),
                     child: const Text(

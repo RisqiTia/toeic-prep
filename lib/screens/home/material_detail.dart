@@ -3,7 +3,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:toeic_prep/models/material_detail_model.dart';
 import 'package:toeic_prep/services/api_service.dart';
 import 'package:toeic_prep/widgets/header.dart';
-import 'package:toeic_prep/services/api_service.dart';
 
 class MaterialDetailScreen extends StatefulWidget {
   final int partId;
