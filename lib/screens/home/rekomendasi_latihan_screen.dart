@@ -1,24 +1,37 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
-import 'package:toeic_prep/services/user_session.dart';
-import 'package:toeic_prep/screens/home/simulasi_result_screen.dart';
 import 'package:toeic_prep/services/api_service.dart';
+import 'package:toeic_prep/screens/home/simulasi_result_screen.dart'
+    show WeakPartInfo;
+import 'package:toeic_prep/screens/home/hasil_latihan_screen.dart';
 
-class SimulasiScreen extends StatefulWidget {
+/// Layar mengerjakan soal rekomendasi latihan.
+/// Soal diambil dari recommendation.php (tidak disimpan ke DB).
+class RekomendasiLatihanScreen extends StatefulWidget {
   final int userId;
+  final List<WeakPartInfo> weakParts; // part-part yang direkomendasikan
+  final int soalPerPart;              // jumlah soal per part (default 20)
+  final int percobaan;                // percobaan ke-berapa (1-based, diteruskan ke hasil)
 
-  const SimulasiScreen({super.key, required this.userId});
+  const RekomendasiLatihanScreen({
+    super.key,
+    required this.userId,
+    required this.weakParts,
+    this.soalPerPart = 20,
+    this.percobaan = 1,
+  });
 
   @override
-  State<SimulasiScreen> createState() => _SimulasiScreenState();
+  State<RekomendasiLatihanScreen> createState() =>
+      _RekomendasiLatihanScreenState();
 }
 
-class _SimulasiScreenState extends State<SimulasiScreen> {
+class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
   late Future<List<LatihanSoalModel>> _soalFuture;
+
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
   bool _isLoadingAudio = false;
@@ -32,21 +45,13 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   bool _showQuestionList = false;
   bool _isSubmitting = false;
 
-  late Timer _timer;
-  int _remainingSeconds = 120 * 60;
-
   @override
   void initState() {
     super.initState();
     _soalFuture = _fetchSoal();
-    _startTimer();
 
-    _audioPlayer.onPlayerComplete.listen((event) {
-      setState(() {
-        _isPlaying = false;
-      });
-
-      _audioCompleted = true;
+    _audioPlayer.onPlayerComplete.listen((_) {
+      setState(() { _isPlaying = false; _audioCompleted = true; });
     });
 
     _audioPlayer.onPlayerStateChanged.listen((state) {
@@ -61,145 +66,79 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
   @override
   void dispose() {
-    _timer.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
 
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-      if (_remainingSeconds <= 0) {
-        _timer.cancel();
-        _submitSimulasi();
-      } else {
-        setState(() => _remainingSeconds--);
-      }
-    });
-  }
+  // ─── Fetch soal rekomendasi dari recommendation.php ──────────────────────
 
-  String get _timerText {
-    final h = _remainingSeconds ~/ 3600;
-    final m = (_remainingSeconds % 3600) ~/ 60;
-    final s = _remainingSeconds % 60;
-    return '${h.toString().padLeft(1, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
-  int? _attemptId;
-
-  // Fetch simulation questions
   Future<List<LatihanSoalModel>> _fetchSoal() async {
-    final session = await UserSession.get();
-    final userId = session?['id'] ?? widget.userId;
+    final partIds = widget.weakParts.map((p) => p.partId).join(',');
+    final url = Uri.parse(
+      '${ApiService.apiBaseUrl}/recommendation.php'
+      '?action=get_questions'
+      '&user_id=${widget.userId}'
+      '&part_ids=$partIds'
+      '&limit=${widget.soalPerPart}',
+    );
 
     try {
-      final response = await http.get(
-        Uri.parse(
-          '${ApiService.apiBaseUrl}/questions.php?action=simulation&user_id=$userId',
-        ),
-      );
+      final response = await http.get(url);
       final data = jsonDecode(response.body);
+
       if (data['status'] == 'success') {
-        _attemptId = data['attempt_id'];
-        final List raw = data['data'];
-        return raw.map((e) => LatihanSoalModel.fromJson(e)).toList();
+        final List parts = data['parts'] as List;
+        final List<LatihanSoalModel> allSoal = [];
+
+        for (final part in parts) {
+          final List questions = part['questions'] as List;
+          allSoal.addAll(
+            questions.map((e) => LatihanSoalModel.fromJson(e)),
+          );
+        }
+        return allSoal;
       } else {
-        throw Exception(data['message'] ?? 'Gagal mengambil soal');
+        throw Exception(data['message'] ?? 'Gagal mengambil soal rekomendasi');
       }
     } catch (e) {
       throw Exception('Gagal terhubung ke server: $e');
     }
   }
 
-  // Submit simulation result
-  void _submitSimulasi() {
+  // ─── Submit jawaban (hitung lokal, tidak ke DB) ───────────────────────────
+
+  void _submit(List<LatihanSoalModel> soalList) {
     if (_isSubmitting) return;
-    setState(() {
-      _isSubmitting = true;
-    });
- 
-    _soalFuture.then((soalList) async {
-      int listeningScore = 0;
-      int readingScore = 0;
-      int totalScore = 0;
-      String motivation = '';
-      List<WeakPartInfo> weakParts = [];   // ← BARU
-      bool saveSuccess = true;
- 
-      // Simpan ke database
-      if (_attemptId != null) {
-        try {
-          final answers = <Map<String, dynamic>>[];
- 
-          for (int i = 0; i < soalList.length; i++) {
-            answers.add({
-              'question_id': soalList[i].id,
-              'user_answer': _userAnswers[i] ?? '',
-              'is_correct':
-                  (_userAnswers[i] ?? '') == soalList[i].correctAnswer,
-            });
-          }
- 
-          final response = await http.post(
-            Uri.parse('${ApiService.apiBaseUrl}/scores.php?action=save'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'attempt_id': _attemptId, 'answers': answers}),
-          );
- 
-          final result = jsonDecode(response.body);
-          listeningScore = result['listening_score'] ?? 0;
-          readingScore   = result['reading_score']   ?? 0;
-          totalScore     = result['total_score']      ?? 0;
-          motivation     = result['motivation']       ?? '';
- 
-          // ── BARU: ambil daftar part lemah dari response ──────────────
-          final List rawWeakParts = result['weak_parts'] ?? [];
-          weakParts = rawWeakParts
-              .map((e) => WeakPartInfo.fromJson(e as Map<String, dynamic>))
-              .toList();
-          // ─────────────────────────────────────────────────────────────
- 
-          debugPrint(response.body);
-        } catch (e) {
-          saveSuccess = false;
-          setState(() {
-            _isSubmitting = false;
-          });
- 
-          debugPrint('Save simulasi error: $e');
-        }
-      }
- 
-      if (!saveSuccess) {
-        if (!mounted) return;
- 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal menyimpan hasil simulasi')),
-        );
- 
-        return;
-      }
- 
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SimulasiResultScreen(
-            totalScore:     totalScore,
-            listeningScore: listeningScore,
-            readingScore:   readingScore,
-            userId:         widget.userId,
-            soalList:       soalList,
-            userAnswers:    Map.from(_userAnswers),
-            motivation:     motivation,
-            weakParts:      weakParts,   // ← BARU
-          ),
+    setState(() => _isSubmitting = true);
+
+    int benar = 0;
+    for (int i = 0; i < soalList.length; i++) {
+      if ((_userAnswers[i] ?? '') == soalList[i].correctAnswer) benar++;
+    }
+
+    // Skor dalam persen (0–100)
+    final int skorPersen = soalList.isNotEmpty
+        ? ((benar / soalList.length) * 100).round()
+        : 0;
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HasilLatihanScreen(
+          skorPersen: skorPersen,
+          totalSoal: soalList.length,
+          benar: benar,
+          userId: widget.userId,
+          weakParts: widget.weakParts,
+          soalPerPart: widget.soalPerPart,
+          percobaan: widget.percobaan, // teruskan percobaan ke-N
         ),
-      );
-    });
+      ),
+    );
   }
 
-  void _showSubmitDialog() {
+  void _showSubmitDialog(List<LatihanSoalModel> soalList) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -225,13 +164,13 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'SELESAIKAN SIMULASI',
+                'SELESAIKAN LATIHAN',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'Kamu bisa menyelesaikan simulasi sekarang atau memeriksa kembali jawabanmu sebelum dikirim.',
+                'Apakah kamu sudah yakin dengan jawabanmu?',
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey[600],
@@ -250,9 +189,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        side: BorderSide(
-                          color: Color.fromARGB(255, 196, 194, 194),
-                        ),
+                        side: BorderSide(color: Colors.grey[300]!),
                       ),
                       child: const Text(
                         'Cek Kembali',
@@ -267,8 +204,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                           ? null
                           : () {
                               Navigator.pop(ctx);
-                              _timer.cancel();
-                              _submitSimulasi();
+                              _submit(soalList);
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF2563EB),
@@ -278,19 +214,10 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                         ),
                         elevation: 0,
                       ),
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Kirim',
-                              style: TextStyle(color: Colors.white),
-                            ),
+                      child: const Text(
+                        'Kirim',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
                 ],
@@ -302,102 +229,38 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     );
   }
 
-  void _showExitDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Keluar Simulasi?',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
-          'Progres akan hilang. Yakin keluar?',
-          style: TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Lanjutkan',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              _timer.cancel();
-              Navigator.pop(ctx);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
+  // ─── Audio ───────────────────────────────────────────────────────────────
 
   Future<void> _toggleAudio(String audioFile) async {
-    // Audio berbeda
     if (_currentAudioFile != audioFile) {
       await _audioPlayer.stop();
-
       _currentAudioFile = audioFile;
       _audioCompleted = false;
-
-      setState(() {
-        _isLoadingAudio = true;
-      });
-
+      setState(() => _isLoadingAudio = true);
       try {
-        await _audioPlayer.setSourceUrl(
-          '${ApiService.mediaBaseUrl}/$audioFile',
-        );
-
+        await _audioPlayer.setSourceUrl('${ApiService.mediaBaseUrl}/$audioFile');
         await _audioPlayer.resume();
-
-        setState(() {
-          _isLoadingAudio = false;
-        });
-      } catch (e) {
-        setState(() {
-          _isLoadingAudio = false;
-        });
+        setState(() => _isLoadingAudio = false);
+      } catch (_) {
+        setState(() => _isLoadingAudio = false);
       }
-
       return;
     }
-
-    // Sedang play → pause
     if (_isPlaying) {
       await _audioPlayer.pause();
-
-      setState(() {
-        _isPlaying = false;
-      });
-
+      setState(() => _isPlaying = false);
       return;
     }
-
-    // Audio selesai → putar dari awal
     if (_audioCompleted) {
       await _audioPlayer.seek(Duration.zero);
-
       await _audioPlayer.resume();
-
       _audioCompleted = false;
-
       return;
     }
-
-    // Audio pause → lanjutkan
     await _audioPlayer.resume();
   }
+
+  // ─── Navigasi soal ────────────────────────────────────────────────────────
 
   void _goToQuestion(int index) {
     setState(() {
@@ -427,22 +290,13 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     }
   }
 
-  void _goPrev(List<LatihanSoalModel> soalList) async {
+  void _goPrev() {
     if (_currentIndex > 0) {
-      final prev = soalList[_currentIndex - 1];
-
-      if (prev.audioFile != _currentAudioFile) {
-        await _audioPlayer.stop();
-
-        _currentAudioFile = null;
-        _audioCompleted = false;
-
-        setState(() {
-          _isPlaying = false;
-        });
-      }
-
+      _audioPlayer.stop();
+      _currentAudioFile = null;
+      _audioCompleted = false;
       setState(() {
+        _isPlaying = false;
         _currentIndex--;
         _selectedAnswer = _userAnswers[_currentIndex];
       });
@@ -462,12 +316,23 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   }
 
   bool _isListeningPart(int partId) => partId >= 1 && partId <= 4;
-  String _getSectionTitle(int partId) {
-    return partId <= 4 ? 'LISTENING SECTION' : 'READING SECTION';
-  }
-
   bool _hasImagePart(int partId) => partId == 1;
   bool _hideOptionTextPart(int partId) => partId == 1 || partId == 2;
+
+  String _getPartLabel(int partId) {
+    switch (partId) {
+      case 1: return 'Photographs';
+      case 2: return 'Question-Response';
+      case 3: return 'Conversations';
+      case 4: return 'Talks';
+      case 5: return 'Incomplete Sentences';
+      case 6: return 'Text Completion';
+      case 7: return 'Reading Comprehension';
+      default: return 'Part $partId';
+    }
+  }
+
+  // ─── Build ───────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -484,7 +349,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
                   Text(
-                    'Memuat soal simulasi...',
+                    'Memuat soal latihan...',
                     style: TextStyle(color: Colors.grey),
                   ),
                 ],
@@ -502,7 +367,8 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   Text('Error: ${snapshot.error}', textAlign: TextAlign.center),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () => setState(() => _soalFuture = _fetchSoal()),
+                    onPressed: () =>
+                        setState(() => _soalFuture = _fetchSoal()),
                     child: const Text('Coba Lagi'),
                   ),
                 ],
@@ -512,7 +378,9 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
           final soalList = snapshot.data!;
           if (soalList.isEmpty) {
-            return const Center(child: Text('Soal simulasi tidak tersedia.'));
+            return const Center(
+              child: Text('Soal rekomendasi tidak tersedia.'),
+            );
           }
 
           final soal = soalList[_currentIndex];
@@ -520,20 +388,17 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
           final partId = soal.partId;
           final answeredCount = _userAnswers.length;
           final progress = answeredCount / total;
-          final options = <String>['A', 'B', 'C'];
-          if (partId != 2 && soal.optionD.isNotEmpty) {
-            options.add('D');
-          }
+
+          final options = ['A', 'B', 'C'];
+          if (partId != 2 && soal.optionD.isNotEmpty) options.add('D');
 
           return SafeArea(
             child: Column(
               children: [
-                // ── Top Bar ──────────────────────────────
+                // ── AppBar sederhana ─────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
+                      horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border(
@@ -543,7 +408,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: _showExitDialog,
+                        onTap: () => _showExitDialog(context),
                         child: Container(
                           width: 36,
                           height: 36,
@@ -555,46 +420,16 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-
-                      // Timer
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _remainingSeconds < 300
-                              ? Colors.red[50]
-                              : Colors.blue[50],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.timer_outlined,
-                              size: 16,
-                              color: _remainingSeconds < 300
-                                  ? Colors.red
-                                  : const Color(0xFF2563EB),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _timerText,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: _remainingSeconds < 300
-                                    ? Colors.red
-                                    : const Color(0xFF2563EB),
-                              ),
-                            ),
-                          ],
+                      const Text(
+                        'Rekomendasi Latihan',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const Spacer(),
                       Text(
-                        'Question ${_currentIndex + 1} of $total',
+                        '${_currentIndex + 1} / $total',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -604,7 +439,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   ),
                 ),
 
-                // ── Nomor Soal (collapsed) ────────────────
+                // ── Progress & nomor soal ─────────────────
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -614,63 +449,52 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                       Row(
                         children: [
                           Text(
-                            _getSectionTitle(partId),
+                            'Part ${soal.partId} — ${_getPartLabel(soal.partId)}',
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF2563EB),
                             ),
                           ),
-
                           const Spacer(),
-
                           IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _showQuestionList = !_showQuestionList;
-                              });
-                            },
-                            icon: const Icon(
+                            onPressed: () => setState(
+                                () => _showQuestionList = !_showQuestionList),
+                            icon: Icon(
                               Icons.menu,
-                              size: 28,
-                              color: Color.fromARGB(255, 154, 153, 153),
+                              size: 24,
+                              color: Colors.grey[500],
                             ),
                           ),
                         ],
                       ),
-
-                      const SizedBox(height: 10),
-
+                      const SizedBox(height: 6),
                       Row(
                         children: [
                           Text(
                             '$answeredCount / $total Terjawab',
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-
                           const Spacer(),
-
                           Text(
                             '${(progress * 100).round()}%',
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF2563EB),
                             ),
                           ),
                         ],
                       ),
-
-                      const SizedBox(height: 8),
-
+                      const SizedBox(height: 6),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: LinearProgressIndicator(
                           value: progress,
-                          minHeight: 8,
+                          minHeight: 7,
                           backgroundColor: Colors.grey.shade300,
                           color: const Color(0xFF2563EB),
                         ),
@@ -679,31 +503,29 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   ),
                 ),
 
-                // ── Nomor Soal (expanded/grid) ────────────
+                // ── Grid nomor soal (collapsed) ───────────
                 if (_showQuestionList)
                   Container(
                     constraints: const BoxConstraints(maxHeight: 200),
                     color: Colors.grey[50],
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
+                        horizontal: 16, vertical: 8),
                     child: GridView.builder(
                       shrinkWrap: true,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 8,
-                            crossAxisSpacing: 2,
-                            mainAxisSpacing: 2,
-                            childAspectRatio: 1,
-                          ),
+                        crossAxisCount: 8,
+                        crossAxisSpacing: 2,
+                        mainAxisSpacing: 2,
+                        childAspectRatio: 1,
+                      ),
                       itemCount: total,
                       itemBuilder: (context, i) =>
-                          _buildNumberBubble(i, small: true),
+                          _buildNumberBubble(i),
                     ),
                   ),
 
-                // ── Konten Soal ──────────────────────────
+                // ── Konten soal ───────────────────────────
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -720,27 +542,6 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                               '${ApiService.mediaBaseUrl}/${soal.imageFile}',
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              loadingBuilder: (ctx, child, progress) {
-                                if (progress == null) return child;
-                                return Container(
-                                  height: 220,
-                                  color: Colors.grey[200],
-                                  child: const Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              },
-                              errorBuilder: (_, _, _) => Container(
-                                height: 220,
-                                color: Colors.grey[200],
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.image_not_supported,
-                                    color: Colors.grey,
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
                             ),
                           ),
 
@@ -749,7 +550,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                             soal.imageFile!.isNotEmpty)
                           const SizedBox(height: 16),
 
-                        // Audio (Part 1-4)
+                        // Audio player (Part 1-4)
                         if (_isListeningPart(partId) &&
                             soal.audioFile != null &&
                             soal.audioFile!.isNotEmpty)
@@ -758,13 +559,12 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                             child: Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 14,
-                              ),
+                                  horizontal: 16, vertical: 14),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(30),
-                                border: Border.all(color: Colors.grey[300]!),
+                                border:
+                                    Border.all(color: Colors.grey[300]!),
                               ),
                               child: Row(
                                 children: [
@@ -796,15 +596,14 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                                           height: (i % 3 == 0)
                                               ? 20
                                               : (i % 2 == 0)
-                                              ? 14
-                                              : 8,
+                                                  ? 14
+                                                  : 8,
                                           decoration: BoxDecoration(
                                             color: _isPlaying
                                                 ? const Color(0xFF2563EB)
                                                 : Colors.grey[400],
-                                            borderRadius: BorderRadius.circular(
-                                              2,
-                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(2),
                                           ),
                                         ),
                                       ),
@@ -841,10 +640,10 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                           final text = key == 'A'
                               ? soal.optionA
                               : key == 'B'
-                              ? soal.optionB
-                              : key == 'C'
-                              ? soal.optionC
-                              : soal.optionD;
+                                  ? soal.optionB
+                                  : key == 'C'
+                                      ? soal.optionC
+                                      : soal.optionD;
                           final isSelected = _selectedAnswer == key;
                           final hideText = _hideOptionTextPart(partId);
 
@@ -915,23 +714,20 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   ),
                 ),
 
-                // ── Bottom Button ─────────────────────────
+                // ── Tombol navigasi bawah ─────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                      horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                    border: Border(
+                        top: BorderSide(color: Colors.grey[200]!)),
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: _currentIndex > 0
-                              ? () => _goPrev(soalList)
-                              : null,
+                          onPressed: _currentIndex > 0 ? _goPrev : null,
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -956,12 +752,13 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                             if (_currentIndex < soalList.length - 1) {
                               _goNext(soalList);
                             } else {
-                              _showSubmitDialog();
+                              _showSubmitDialog(soalList);
                             }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2563EB),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -990,39 +787,72 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     );
   }
 
-  Widget _buildNumberBubble(int i, {bool small = false}) {
+  Widget _buildNumberBubble(int i) {
     final isAnswered = _userAnswers.containsKey(i);
     final isCurrent = i == _currentIndex;
-    final size = small ? 42.0 : 44.0;
-    final fontSize = small ? 13.0 : 14.0;
 
     return GestureDetector(
       onTap: () => _goToQuestion(i),
       child: Container(
-        width: size,
-        height: size,
-        margin: const EdgeInsets.only(right: 6, bottom: 4),
+        margin: const EdgeInsets.only(right: 4, bottom: 4),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isCurrent
               ? const Color(0xFF2563EB)
               : isAnswered
-              ? Colors.blue[100]
-              : Colors.white,
+                  ? Colors.blue[100]
+                  : Colors.white,
           border: Border.all(
-            color: isCurrent ? const Color(0xFF2563EB) : Colors.grey[300]!,
+            color: isCurrent
+                ? const Color(0xFF2563EB)
+                : Colors.grey[300]!,
           ),
         ),
         child: Center(
           child: Text(
             '${i + 1}',
             style: TextStyle(
-              fontSize: fontSize,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
               color: isCurrent ? Colors.white : Colors.black87,
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showExitDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Keluar Latihan?',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text('Progres akan hilang. Yakin keluar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Lanjutkan',
+                style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Keluar',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
