@@ -43,20 +43,22 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     _startTimer();
 
     _audioPlayer.onPlayerComplete.listen((event) {
+      if (!mounted) return;
+
       setState(() {
         _isPlaying = false;
+        _audioCompleted = true;
+        _currentAudioFile = null;
+        _isLoadingAudio = false;
       });
-
-      _audioCompleted = true;
     });
 
     _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = state == PlayerState.playing;
-          if (state == PlayerState.completed) _isLoadingAudio = false;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        _isPlaying = state == PlayerState.playing;
+      });
     });
   }
 
@@ -387,13 +389,10 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
     // Audio selesai → putar dari awal
     if (_audioCompleted) {
-      await _audioPlayer.seek(Duration.zero);
-
-      await _audioPlayer.resume();
-
+      _currentAudioFile = null;
       _audioCompleted = false;
 
-      return;
+      return _toggleAudio(audioFile);
     }
 
     // Audio pause → lanjutkan

@@ -41,32 +41,22 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
     super.initState();
 
     _audioPlayer.onPlayerComplete.listen((event) {
-      debugPrint('AUDIO SELESAI');
+      if (!mounted) return;
+
       setState(() {
         _isPlaying = false;
+        _audioCompleted = true;
+        _currentAudioFile = null;
+        _isLoadingAudio = false;
       });
-
-      _audioCompleted = true;
     });
 
     _audioPlayer.onPlayerStateChanged.listen((state) {
-      debugPrint('PLAYER STATE = $state');
+      if (!mounted) return;
 
-      if (mounted) {
-        setState(() {
-          _isPlaying = state == PlayerState.playing;
-
-          if (state == PlayerState.completed) {
-            _isLoadingAudio = false;
-            _isPlaying = false;
-          }
-        });
-      }
-
-      if (state == PlayerState.completed) {
-        _audioCompleted = true;
-        _currentAudioFile = null;
-      }
+      setState(() {
+        _isPlaying = state == PlayerState.playing;
+      });
     });
   }
 
@@ -96,10 +86,7 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
 
         setState(() {
           _isLoadingAudio = false;
-          _isPlaying = true;
         });
-
-        debugPrint('RESUME DIPANGGIL');
       } catch (e) {
         setState(() {
           _isLoadingAudio = false;
@@ -152,7 +139,6 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
   @override
   Widget build(BuildContext context) {
     final soal = widget.soalList[currentIndex];
-    debugPrint('AUDIO FILE = ${soal.audioFile}');
 
     final userAnswer = widget.userAnswers[currentIndex];
 
