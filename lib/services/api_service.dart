@@ -9,9 +9,9 @@ class ApiService {
   // static const String apiBaseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
   // static const String mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
   static const String apiBaseUrl =
-      'http://10.110.75.156/toeic_prep_app/toeic_api';
+      'http://192.168.1.9/toeic_prep_app/toeic_api';
   static const String mediaBaseUrl =
-      'http://10.110.75.156/toeic_dataset_generator';
+      'http://192.168.1.9/toeic_dataset_generator';
 
   // ─── AUTH ─────────────────────────────────────────────────────
 
