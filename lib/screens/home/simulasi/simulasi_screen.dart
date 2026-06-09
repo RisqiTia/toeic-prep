@@ -118,20 +118,20 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     setState(() {
       _isSubmitting = true;
     });
- 
+
     _soalFuture.then((soalList) async {
       int listeningScore = 0;
       int readingScore = 0;
       int totalScore = 0;
       String motivation = '';
-      List<WeakPartInfo> weakParts = [];   // ← BARU
+      List<WeakPartInfo> weakParts = []; // ← BARU
       bool saveSuccess = true;
- 
+
       // Simpan ke database
       if (_attemptId != null) {
         try {
           final answers = <Map<String, dynamic>>[];
- 
+
           for (int i = 0; i < soalList.length; i++) {
             answers.add({
               'question_id': soalList[i].id,
@@ -140,60 +140,60 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   (_userAnswers[i] ?? '') == soalList[i].correctAnswer,
             });
           }
- 
+
           final response = await http.post(
             Uri.parse('${ApiService.apiBaseUrl}/scores.php?action=save'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'attempt_id': _attemptId, 'answers': answers}),
           );
- 
+
           final result = jsonDecode(response.body);
           listeningScore = result['listening_score'] ?? 0;
-          readingScore   = result['reading_score']   ?? 0;
-          totalScore     = result['total_score']      ?? 0;
-          motivation     = result['motivation']       ?? '';
- 
+          readingScore = result['reading_score'] ?? 0;
+          totalScore = result['total_score'] ?? 0;
+          motivation = result['motivation'] ?? '';
+
           // ── BARU: ambil daftar part lemah dari response ──────────────
           final List rawWeakParts = result['weak_parts'] ?? [];
           weakParts = rawWeakParts
               .map((e) => WeakPartInfo.fromJson(e as Map<String, dynamic>))
               .toList();
           // ─────────────────────────────────────────────────────────────
- 
+
           debugPrint(response.body);
         } catch (e) {
           saveSuccess = false;
           setState(() {
             _isSubmitting = false;
           });
- 
+
           debugPrint('Save simulasi error: $e');
         }
       }
- 
+
       if (!saveSuccess) {
         if (!mounted) return;
- 
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal menyimpan hasil simulasi')),
         );
- 
+
         return;
       }
- 
+
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => SimulasiResultScreen(
-            totalScore:     totalScore,
+            totalScore: totalScore,
             listeningScore: listeningScore,
-            readingScore:   readingScore,
-            userId:         widget.userId,
-            soalList:       soalList,
-            userAnswers:    Map.from(_userAnswers),
-            motivation:     motivation,
-            weakParts:      weakParts,   // ← BARU
+            readingScore: readingScore,
+            userId: widget.userId,
+            soalList: soalList,
+            userAnswers: Map.from(_userAnswers),
+            motivation: motivation,
+            weakParts: weakParts, // ← BARU
           ),
         ),
       );

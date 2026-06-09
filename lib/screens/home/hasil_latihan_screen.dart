@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:toeic_prep/screens/home/simulasi_result_screen.dart'
+import 'package:toeic_prep/screens/home/simulasi/simulasi_result_screen.dart'
     show WeakPartInfo;
 import 'package:toeic_prep/screens/home/rekomendasi_latihan_screen.dart';
 
@@ -90,8 +90,7 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
   }
 
   bool get _lulus => widget.skorPersen >= _threshold;
-  bool get _sudahMaksPercobaan =>
-      widget.percobaan >= _maxPercobaan && !_lulus;
+  bool get _sudahMaksPercobaan => widget.percobaan >= _maxPercobaan && !_lulus;
 
   void _cobaUjiUlang() {
     Navigator.popUntil(context, (route) => route.isFirst);
@@ -191,10 +190,7 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
 
                       Text(
                         '${widget.benar} dari ${widget.totalSoal} soal benar',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                       ),
 
                       // Badge percobaan (hanya jika belum maks)
@@ -263,10 +259,7 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                           Navigator.popUntil(context, (route) => route.isFirst),
                       child: Text(
                         'Kembali ke Beranda',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 14),
                       ),
                     ),
                   ],
@@ -342,11 +335,14 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () => Navigator.popUntil(
-                                  context, (route) => route.isFirst),
+                                context,
+                                (route) => route.isFirst,
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF2563EB),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -381,10 +377,7 @@ class _ScoreRingPainter extends CustomPainter {
   final double progress;
   final Color activeColor;
 
-  const _ScoreRingPainter({
-    required this.progress,
-    required this.activeColor,
-  });
+  const _ScoreRingPainter({required this.progress, required this.activeColor});
 
   @override
   void paint(Canvas canvas, Size size) {
