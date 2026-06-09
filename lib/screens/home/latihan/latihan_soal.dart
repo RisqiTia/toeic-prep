@@ -4,7 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
 import 'package:toeic_prep/services/user_session.dart';
-import 'package:toeic_prep/screens/home/result_screen.dart';
+import 'package:toeic_prep/screens/home/latihan/result_screen.dart';
 import 'package:toeic_prep/services/api_service.dart';
 
 class LatihanSoal extends StatefulWidget {

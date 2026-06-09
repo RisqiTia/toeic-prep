@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
+import 'package:toeic_prep/screens/home/simulasi/periksa_jawaban_screen.dart';
 import 'package:toeic_prep/services/user_session.dart';
 import 'package:toeic_prep/services/api_service.dart';
 
@@ -309,7 +310,16 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // TODO: ke halaman periksa jawaban
+                    // Navigasi ke halaman periksa jawaban
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PeriksaJawabanScreen(
+                          soalList: widget.soalList,
+                          userAnswers: widget.userAnswers,
+                        ),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),

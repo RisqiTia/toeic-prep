@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'services/user_session.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/beranda.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   runApp(const MyApp());
 }
 
@@ -56,9 +58,9 @@ class _SplashRouterState extends State<SplashRouter> {
         context,
         MaterialPageRoute(
           builder: (_) => BerandaScreen(
-            userId    : userData?['id']          ?? 0,
-            userName  : userData?['name']        ?? 'Pengguna',
-            userEmail : userData?['email']       ?? '',
+            userId: userData?['id'] ?? 0,
+            userName: userData?['name'] ?? 'Pengguna',
+            userEmail: userData?['email'] ?? '',
             skillLevel: userData?['skill_level'] ?? 'beginner',
           ),
         ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:toeic_prep/models/materi_model.dart';
 import 'package:toeic_prep/widgets/materi_card.dart';
-import 'package:toeic_prep/screens/home/material_detail.dart';
+import 'package:toeic_prep/screens/home/materi/material_detail.dart';
 import 'package:toeic_prep/widgets/header.dart';
 
 class MaterialsScreen extends StatelessWidget {

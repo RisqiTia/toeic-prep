@@ -5,7 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
 import 'package:toeic_prep/services/user_session.dart';
-import 'package:toeic_prep/screens/home/simulasi_result_screen.dart';
+import 'package:toeic_prep/screens/home/simulasi/simulasi_result_screen.dart';
 import 'package:toeic_prep/services/api_service.dart';
 
 class SimulasiScreen extends StatefulWidget {
@@ -30,6 +30,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   String? _selectedAnswer;
 
   bool _showQuestionList = false;
+  final ScrollController _questionScrollController = ScrollController();
   bool _isSubmitting = false;
 
   late Timer _timer;
@@ -403,6 +404,29 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     setState(() => _isPlaying = false);
   }
 
+  void _openQuestionList(int total) {
+    setState(() {
+      _showQuestionList = !_showQuestionList;
+    });
+
+    if (_showQuestionList) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        const itemHeight = 50.0;
+        const crossAxisCount = 8;
+
+        final row = _currentIndex ~/ crossAxisCount;
+
+        double offset = (row * itemHeight) - 120;
+
+        if (offset < 0) {
+          offset = 0;
+        }
+
+        _questionScrollController.jumpTo(offset);
+      });
+    }
+  }
+
   void _goNext(List<LatihanSoalModel> soalList) {
     if (_currentIndex < soalList.length - 1) {
       final next = soalList[_currentIndex + 1];
@@ -618,9 +642,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
                           IconButton(
                             onPressed: () {
-                              setState(() {
-                                _showQuestionList = !_showQuestionList;
-                              });
+                              _openQuestionList(total);
                             },
                             icon: const Icon(
                               Icons.menu,
@@ -674,24 +696,25 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                 // ── Nomor Soal (expanded/grid) ────────────
                 if (_showQuestionList)
                   Container(
-                    constraints: const BoxConstraints(maxHeight: 200),
-                    color: Colors.grey[50],
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
+                    height: 220,
+                    color: Colors.grey.shade50,
+                    padding: const EdgeInsets.all(12),
+
                     child: GridView.builder(
-                      shrinkWrap: true,
+                      controller: _questionScrollController,
+
+                      itemCount: total,
+
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 8,
-                            crossAxisSpacing: 2,
-                            mainAxisSpacing: 2,
-                            childAspectRatio: 1,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
                           ),
-                      itemCount: total,
-                      itemBuilder: (context, i) =>
-                          _buildNumberBubble(i, small: true),
+
+                      itemBuilder: (context, index) {
+                        return _buildNumberBubble(index, small: true);
+                      },
                     ),
                   ),
 
@@ -926,17 +949,30 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                               : null,
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
+
+                            backgroundColor: _currentIndex == 0
+                                ? Colors.grey.shade200
+                                : Colors.white,
+
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            side: BorderSide(color: Colors.grey[300]!),
+
+                            side: BorderSide(
+                              color: _currentIndex == 0
+                                  ? Colors.grey.shade300
+                                  : Colors.grey.shade400,
+                            ),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Sebelumnya',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.black87,
                               fontWeight: FontWeight.w500,
+
+                              color: _currentIndex == 0
+                                  ? Colors.grey
+                                  : Colors.black87,
                             ),
                           ),
                         ),
