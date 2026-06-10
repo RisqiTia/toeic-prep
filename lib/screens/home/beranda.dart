@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:toeic_prep/screens/home/materials.dart';
-import 'package:toeic_prep/screens/home/latihan.dart';
+import 'package:toeic_prep/screens/home/materi/materials.dart';
+import 'package:toeic_prep/screens/home/latihan/latihan.dart';
 import 'package:toeic_prep/screens/riwayat/riwayat_screen.dart';
 import 'package:toeic_prep/screens/profile/profil_screen.dart';
 import 'package:toeic_prep/widgets/widgets.dart';
-import 'package:toeic_prep/screens/home/simulasi_screen.dart';
+import 'package:toeic_prep/screens/home/simulasi/simulasi_screen.dart';
 import 'package:toeic_prep/services/user_session.dart';
 
 class BerandaScreen extends StatefulWidget {
@@ -130,7 +130,7 @@ class _BerandaScreenState extends State<BerandaScreen> {
               onTap: () {
                 showDialog(
                   context: context,
-                  barrierColor: Colors.black.withOpacity(0.5),
+                  barrierColor: Colors.black.withValues(alpha: 0.5),
                   builder: (ctx) => const _SimulasiConfirmDialog(),
                 );
               },

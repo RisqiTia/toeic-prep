@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:toeic_prep/models/latihan_model.dart';
 import 'package:toeic_prep/widgets/materi_card.dart';
 import 'package:toeic_prep/widgets/header.dart';
-import 'package:toeic_prep/screens/home/latihan_soal.dart';
+import 'package:toeic_prep/screens/home/latihan/latihan_soal.dart';
 import 'package:toeic_prep/services/user_session.dart';
 
 class LatihanScreen extends StatelessWidget {

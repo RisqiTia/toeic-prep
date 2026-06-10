@@ -4,7 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
 import 'package:toeic_prep/services/api_service.dart';
-import 'package:toeic_prep/screens/home/simulasi_result_screen.dart'
+import 'package:toeic_prep/screens/home/simulasi/simulasi_result_screen.dart'
     show WeakPartInfo;
 import 'package:toeic_prep/screens/home/hasil_latihan_screen.dart';
 
@@ -13,8 +13,8 @@ import 'package:toeic_prep/screens/home/hasil_latihan_screen.dart';
 class RekomendasiLatihanScreen extends StatefulWidget {
   final int userId;
   final List<WeakPartInfo> weakParts; // part-part yang direkomendasikan
-  final int soalPerPart;              // jumlah soal per part (default 20)
-  final int percobaan;                // percobaan ke-berapa (1-based, diteruskan ke hasil)
+  final int soalPerPart; // jumlah soal per part (default 20)
+  final int percobaan; // percobaan ke-berapa (1-based, diteruskan ke hasil)
 
   const RekomendasiLatihanScreen({
     super.key,
@@ -51,7 +51,10 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
     _soalFuture = _fetchSoal();
 
     _audioPlayer.onPlayerComplete.listen((_) {
-      setState(() { _isPlaying = false; _audioCompleted = true; });
+      setState(() {
+        _isPlaying = false;
+        _audioCompleted = true;
+      });
     });
 
     _audioPlayer.onPlayerStateChanged.listen((state) {
@@ -92,9 +95,7 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
 
         for (final part in parts) {
           final List questions = part['questions'] as List;
-          allSoal.addAll(
-            questions.map((e) => LatihanSoalModel.fromJson(e)),
-          );
+          allSoal.addAll(questions.map((e) => LatihanSoalModel.fromJson(e)));
         }
         return allSoal;
       } else {
@@ -238,7 +239,9 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
       _audioCompleted = false;
       setState(() => _isLoadingAudio = true);
       try {
-        await _audioPlayer.setSourceUrl('${ApiService.mediaBaseUrl}/$audioFile');
+        await _audioPlayer.setSourceUrl(
+          '${ApiService.mediaBaseUrl}/$audioFile',
+        );
         await _audioPlayer.resume();
         setState(() => _isLoadingAudio = false);
       } catch (_) {
@@ -321,14 +324,22 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
 
   String _getPartLabel(int partId) {
     switch (partId) {
-      case 1: return 'Photographs';
-      case 2: return 'Question-Response';
-      case 3: return 'Conversations';
-      case 4: return 'Talks';
-      case 5: return 'Incomplete Sentences';
-      case 6: return 'Text Completion';
-      case 7: return 'Reading Comprehension';
-      default: return 'Part $partId';
+      case 1:
+        return 'Photographs';
+      case 2:
+        return 'Question-Response';
+      case 3:
+        return 'Conversations';
+      case 4:
+        return 'Talks';
+      case 5:
+        return 'Incomplete Sentences';
+      case 6:
+        return 'Text Completion';
+      case 7:
+        return 'Reading Comprehension';
+      default:
+        return 'Part $partId';
     }
   }
 
@@ -367,8 +378,7 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                   Text('Error: ${snapshot.error}', textAlign: TextAlign.center),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () =>
-                        setState(() => _soalFuture = _fetchSoal()),
+                    onPressed: () => setState(() => _soalFuture = _fetchSoal()),
                     child: const Text('Coba Lagi'),
                   ),
                 ],
@@ -398,7 +408,9 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                 // ── AppBar sederhana ─────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border(
@@ -459,7 +471,8 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                           const Spacer(),
                           IconButton(
                             onPressed: () => setState(
-                                () => _showQuestionList = !_showQuestionList),
+                              () => _showQuestionList = !_showQuestionList,
+                            ),
                             icon: Icon(
                               Icons.menu,
                               size: 24,
@@ -509,19 +522,20 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                     constraints: const BoxConstraints(maxHeight: 200),
                     color: Colors.grey[50],
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: GridView.builder(
                       shrinkWrap: true,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 8,
-                        crossAxisSpacing: 2,
-                        mainAxisSpacing: 2,
-                        childAspectRatio: 1,
-                      ),
+                            crossAxisCount: 8,
+                            crossAxisSpacing: 2,
+                            mainAxisSpacing: 2,
+                            childAspectRatio: 1,
+                          ),
                       itemCount: total,
-                      itemBuilder: (context, i) =>
-                          _buildNumberBubble(i),
+                      itemBuilder: (context, i) => _buildNumberBubble(i),
                     ),
                   ),
 
@@ -559,12 +573,13 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                             child: Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(30),
-                                border:
-                                    Border.all(color: Colors.grey[300]!),
+                                border: Border.all(color: Colors.grey[300]!),
                               ),
                               child: Row(
                                 children: [
@@ -596,14 +611,15 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                                           height: (i % 3 == 0)
                                               ? 20
                                               : (i % 2 == 0)
-                                                  ? 14
-                                                  : 8,
+                                              ? 14
+                                              : 8,
                                           decoration: BoxDecoration(
                                             color: _isPlaying
                                                 ? const Color(0xFF2563EB)
                                                 : Colors.grey[400],
-                                            borderRadius:
-                                                BorderRadius.circular(2),
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -640,10 +656,10 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                           final text = key == 'A'
                               ? soal.optionA
                               : key == 'B'
-                                  ? soal.optionB
-                                  : key == 'C'
-                                      ? soal.optionC
-                                      : soal.optionD;
+                              ? soal.optionB
+                              : key == 'C'
+                              ? soal.optionC
+                              : soal.optionD;
                           final isSelected = _selectedAnswer == key;
                           final hideText = _hideOptionTextPart(partId);
 
@@ -717,11 +733,12 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                 // ── Tombol navigasi bawah ─────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border(
-                        top: BorderSide(color: Colors.grey[200]!)),
+                    border: Border(top: BorderSide(color: Colors.grey[200]!)),
                   ),
                   child: Row(
                     children: [
@@ -757,8 +774,7 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2563EB),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -800,12 +816,10 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
           color: isCurrent
               ? const Color(0xFF2563EB)
               : isAnswered
-                  ? Colors.blue[100]
-                  : Colors.white,
+              ? Colors.blue[100]
+              : Colors.white,
           border: Border.all(
-            color: isCurrent
-                ? const Color(0xFF2563EB)
-                : Colors.grey[300]!,
+            color: isCurrent ? const Color(0xFF2563EB) : Colors.grey[300]!,
           ),
         ),
         child: Center(
@@ -826,8 +840,7 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Keluar Latihan?',
           style: TextStyle(fontWeight: FontWeight.bold),
@@ -836,8 +849,10 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Lanjutkan',
-                style: TextStyle(color: Colors.grey)),
+            child: const Text(
+              'Lanjutkan',
+              style: TextStyle(color: Colors.grey),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -847,10 +862,10 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: const Text('Keluar',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

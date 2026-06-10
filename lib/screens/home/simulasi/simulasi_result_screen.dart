@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
+import 'package:toeic_prep/screens/home/simulasi/periksa_jawaban_screen.dart';
 import 'package:toeic_prep/services/user_session.dart';
 import 'package:toeic_prep/services/api_service.dart';
 import 'package:toeic_prep/screens/home/rekomendasi_latihan_screen.dart';
@@ -21,11 +22,11 @@ class WeakPartInfo {
   });
 
   factory WeakPartInfo.fromJson(Map<String, dynamic> json) => WeakPartInfo(
-        partId: json['part_id'] as int,
-        partName: json['part_name'] as String,
-        partType: json['part_type'] as String,
-        accuracy: (json['accuracy'] as num).toDouble(),
-      );
+    partId: json['part_id'] as int,
+    partName: json['part_name'] as String,
+    partType: json['part_type'] as String,
+    accuracy: (json['accuracy'] as num).toDouble(),
+  );
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
@@ -107,8 +108,12 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
     if (namaPartList.length == 1) {
       namaGabung = namaPartList.first;
     } else {
-      final semuaKecualiTerakhir = namaPartList.sublist(0, namaPartList.length - 1);
-      namaGabung = '${semuaKecualiTerakhir.join(', ')} dan ${namaPartList.last}';
+      final semuaKecualiTerakhir = namaPartList.sublist(
+        0,
+        namaPartList.length - 1,
+      );
+      namaGabung =
+          '${semuaKecualiTerakhir.join(', ')} dan ${namaPartList.last}';
     }
 
     _rekomendasiPesan =
@@ -138,7 +143,10 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
     return 'advanced';
   }
 
-  Future<void> _updateLevel(String newLevel, Map<String, dynamic>? session) async {
+  Future<void> _updateLevel(
+    String newLevel,
+    Map<String, dynamic>? session,
+  ) async {
     final email = session?['email'] ?? '';
     try {
       await http.post(
@@ -160,19 +168,27 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
 
   String _getLevelLabel(String level) {
     switch (level) {
-      case 'beginner':     return 'Pemula';
-      case 'intermediate': return 'Menengah';
-      case 'advanced':     return 'Mahir';
-      default:             return level;
+      case 'beginner':
+        return 'Pemula';
+      case 'intermediate':
+        return 'Menengah';
+      case 'advanced':
+        return 'Mahir';
+      default:
+        return level;
     }
   }
 
   Color _getLevelColor(String level) {
     switch (level) {
-      case 'beginner':     return Colors.orange;
-      case 'intermediate': return Colors.blue;
-      case 'advanced':     return Colors.green;
-      default:             return Colors.grey;
+      case 'beginner':
+        return Colors.orange;
+      case 'intermediate':
+        return Colors.blue;
+      case 'advanced':
+        return Colors.green;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -208,7 +224,8 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
     }
 
     final displayLevel = _levelUp ? _newLevel : _currentLevel;
-    final bool butuhRekomendasi = widget.totalScore < 500 && _recommendedParts.isNotEmpty;
+    final bool butuhRekomendasi =
+        widget.totalScore < 500 && _recommendedParts.isNotEmpty;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -273,7 +290,9 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _getLevelColor(displayLevel).withValues(alpha: 0.4),
+                                  color: _getLevelColor(
+                                    displayLevel,
+                                  ).withValues(alpha: 0.4),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
@@ -282,8 +301,11 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.arrow_circle_up,
-                                    color: Colors.white, size: 14),
+                                const Icon(
+                                  Icons.arrow_circle_up,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   _getLevelLabel(displayLevel),
@@ -302,7 +324,9 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                             ),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: _getLevelColor(displayLevel)),
+                              border: Border.all(
+                                color: _getLevelColor(displayLevel),
+                              ),
                             ),
                             child: Text(
                               _getLevelLabel(displayLevel),
@@ -404,7 +428,16 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // TODO: navigasi ke halaman periksa jawaban
+                    // Navigasi ke halaman periksa jawaban
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PeriksaJawabanScreen(
+                          soalList: widget.soalList,
+                          userAnswers: widget.userAnswers,
+                        ),
+                      ),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),

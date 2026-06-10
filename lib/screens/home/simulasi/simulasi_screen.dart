@@ -5,7 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
 import 'package:toeic_prep/services/user_session.dart';
-import 'package:toeic_prep/screens/home/simulasi_result_screen.dart';
+import 'package:toeic_prep/screens/home/simulasi/simulasi_result_screen.dart';
 import 'package:toeic_prep/services/api_service.dart';
 
 class SimulasiScreen extends StatefulWidget {
@@ -30,6 +30,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   String? _selectedAnswer;
 
   bool _showQuestionList = false;
+  final ScrollController _questionScrollController = ScrollController();
   bool _isSubmitting = false;
 
   late Timer _timer;
@@ -42,20 +43,22 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     _startTimer();
 
     _audioPlayer.onPlayerComplete.listen((event) {
+      if (!mounted) return;
+
       setState(() {
         _isPlaying = false;
+        _audioCompleted = true;
+        _currentAudioFile = null;
+        _isLoadingAudio = false;
       });
-
-      _audioCompleted = true;
     });
 
     _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = state == PlayerState.playing;
-          if (state == PlayerState.completed) _isLoadingAudio = false;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        _isPlaying = state == PlayerState.playing;
+      });
     });
   }
 
@@ -117,20 +120,20 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     setState(() {
       _isSubmitting = true;
     });
- 
+
     _soalFuture.then((soalList) async {
       int listeningScore = 0;
       int readingScore = 0;
       int totalScore = 0;
       String motivation = '';
-      List<WeakPartInfo> weakParts = [];   // ← BARU
+      List<WeakPartInfo> weakParts = []; // ← BARU
       bool saveSuccess = true;
- 
+
       // Simpan ke database
       if (_attemptId != null) {
         try {
           final answers = <Map<String, dynamic>>[];
- 
+
           for (int i = 0; i < soalList.length; i++) {
             answers.add({
               'question_id': soalList[i].id,
@@ -139,60 +142,60 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   (_userAnswers[i] ?? '') == soalList[i].correctAnswer,
             });
           }
- 
+
           final response = await http.post(
             Uri.parse('${ApiService.apiBaseUrl}/scores.php?action=save'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'attempt_id': _attemptId, 'answers': answers}),
           );
- 
+
           final result = jsonDecode(response.body);
           listeningScore = result['listening_score'] ?? 0;
-          readingScore   = result['reading_score']   ?? 0;
-          totalScore     = result['total_score']      ?? 0;
-          motivation     = result['motivation']       ?? '';
- 
+          readingScore = result['reading_score'] ?? 0;
+          totalScore = result['total_score'] ?? 0;
+          motivation = result['motivation'] ?? '';
+
           // ── BARU: ambil daftar part lemah dari response ──────────────
           final List rawWeakParts = result['weak_parts'] ?? [];
           weakParts = rawWeakParts
               .map((e) => WeakPartInfo.fromJson(e as Map<String, dynamic>))
               .toList();
           // ─────────────────────────────────────────────────────────────
- 
+
           debugPrint(response.body);
         } catch (e) {
           saveSuccess = false;
           setState(() {
             _isSubmitting = false;
           });
- 
+
           debugPrint('Save simulasi error: $e');
         }
       }
- 
+
       if (!saveSuccess) {
         if (!mounted) return;
- 
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gagal menyimpan hasil simulasi')),
         );
- 
+
         return;
       }
- 
+
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => SimulasiResultScreen(
-            totalScore:     totalScore,
+            totalScore: totalScore,
             listeningScore: listeningScore,
-            readingScore:   readingScore,
-            userId:         widget.userId,
-            soalList:       soalList,
-            userAnswers:    Map.from(_userAnswers),
-            motivation:     motivation,
-            weakParts:      weakParts,   // ← BARU
+            readingScore: readingScore,
+            userId: widget.userId,
+            soalList: soalList,
+            userAnswers: Map.from(_userAnswers),
+            motivation: motivation,
+            weakParts: weakParts, // ← BARU
           ),
         ),
       );
@@ -386,13 +389,10 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
     // Audio selesai → putar dari awal
     if (_audioCompleted) {
-      await _audioPlayer.seek(Duration.zero);
-
-      await _audioPlayer.resume();
-
+      _currentAudioFile = null;
       _audioCompleted = false;
 
-      return;
+      return _toggleAudio(audioFile);
     }
 
     // Audio pause → lanjutkan
@@ -409,6 +409,29 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     _currentAudioFile = null;
     _audioCompleted = false;
     setState(() => _isPlaying = false);
+  }
+
+  void _openQuestionList(int total) {
+    setState(() {
+      _showQuestionList = !_showQuestionList;
+    });
+
+    if (_showQuestionList) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        const itemHeight = 50.0;
+        const crossAxisCount = 8;
+
+        final row = _currentIndex ~/ crossAxisCount;
+
+        double offset = (row * itemHeight) - 120;
+
+        if (offset < 0) {
+          offset = 0;
+        }
+
+        _questionScrollController.jumpTo(offset);
+      });
+    }
   }
 
   void _goNext(List<LatihanSoalModel> soalList) {
@@ -626,9 +649,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
                           IconButton(
                             onPressed: () {
-                              setState(() {
-                                _showQuestionList = !_showQuestionList;
-                              });
+                              _openQuestionList(total);
                             },
                             icon: const Icon(
                               Icons.menu,
@@ -682,24 +703,25 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                 // ── Nomor Soal (expanded/grid) ────────────
                 if (_showQuestionList)
                   Container(
-                    constraints: const BoxConstraints(maxHeight: 200),
-                    color: Colors.grey[50],
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
+                    height: 220,
+                    color: Colors.grey.shade50,
+                    padding: const EdgeInsets.all(12),
+
                     child: GridView.builder(
-                      shrinkWrap: true,
+                      controller: _questionScrollController,
+
+                      itemCount: total,
+
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 8,
-                            crossAxisSpacing: 2,
-                            mainAxisSpacing: 2,
-                            childAspectRatio: 1,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
                           ),
-                      itemCount: total,
-                      itemBuilder: (context, i) =>
-                          _buildNumberBubble(i, small: true),
+
+                      itemBuilder: (context, index) {
+                        return _buildNumberBubble(index, small: true);
+                      },
                     ),
                   ),
 
@@ -934,17 +956,30 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                               : null,
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
+
+                            backgroundColor: _currentIndex == 0
+                                ? Colors.grey.shade200
+                                : Colors.white,
+
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            side: BorderSide(color: Colors.grey[300]!),
+
+                            side: BorderSide(
+                              color: _currentIndex == 0
+                                  ? Colors.grey.shade300
+                                  : Colors.grey.shade400,
+                            ),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Sebelumnya',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.black87,
                               fontWeight: FontWeight.w500,
+
+                              color: _currentIndex == 0
+                                  ? Colors.grey
+                                  : Colors.black87,
                             ),
                           ),
                         ),
