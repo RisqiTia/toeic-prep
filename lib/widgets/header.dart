@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 class Header extends StatelessWidget {
   final String title;
   final VoidCallback? onBack;
+  final bool showBackButton;
 
-  const Header({super.key, required this.title, this.onBack});
+  const Header({
+    super.key,
+    required this.title,
+    this.onBack,
+    this.showBackButton = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,15 +21,18 @@ class Header extends StatelessWidget {
       child: SafeArea(
         child: Row(
           children: [
-            // Back Button
-            GestureDetector(
-              onTap: onBack ?? () => Navigator.pop(context),
-              child: const Icon(
-                Icons.arrow_back,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
+            if (showBackButton)
+              GestureDetector(
+                onTap: onBack ?? () => Navigator.pop(context),
+                child: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              )
+            else
+              const SizedBox(width: 24),
+
             const SizedBox(width: 16),
             // Title
             Expanded(
@@ -37,7 +46,7 @@ class Header extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 24), // penyeimbang icon back
+            SizedBox(width: showBackButton ? 24 : 40), // penyeimbang icon back
           ],
         ),
       ),

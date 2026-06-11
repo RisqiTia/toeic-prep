@@ -23,8 +23,8 @@ class CustomBottomNavBar extends StatelessWidget {
         child: Row(
           children: [
             _buildNavItem(Icons.home, 'Beranda', 0),
-            _buildNavItem(Icons.access_time, 'Riwayat', 1),
-            _buildNavItem(Icons.person, 'Profil', 2),
+            _buildNavItem(Icons.history, 'Riwayat', 1),
+            _buildNavItem(Icons.account_circle, 'Profil', 2),
           ],
         ),
       ),
@@ -41,33 +41,27 @@ class CustomBottomNavBar extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Icon — bulat biru saat aktif, transparan saat tidak
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(10),
+            Container(
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isActive ? const Color(0xFFDBEAFE) : Colors.transparent,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
-                size: 22,
-                color: isActive
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF9CA3AF),
+                size: 28,
+                color: isActive ? const Color(0xFF2563EB) : Colors.grey[600],
               ),
             ),
+
             const SizedBox(height: 4),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
+
+            Text(
+              label,
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF9CA3AF),
+                fontSize: 12,
+                color: isActive ? const Color(0xFF2563EB) : Colors.grey[600],
               ),
-              child: Text(label),
             ),
           ],
         ),

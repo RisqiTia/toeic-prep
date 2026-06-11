@@ -6,11 +6,13 @@ import 'package:audioplayers/audioplayers.dart';
 class PeriksaJawabanScreen extends StatefulWidget {
   final List soalList;
   final Map<int, String> userAnswers;
+  final bool showQuestionList;
 
   const PeriksaJawabanScreen({
     super.key,
     required this.soalList,
     required this.userAnswers,
+    this.showQuestionList = true,
   });
 
   @override
@@ -188,29 +190,32 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.menu,
-                            size: 28,
-                            color: Color.fromARGB(255, 154, 153, 153),
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _showQuestionList = !_showQuestionList;
-                            });
-
-                            if (_showQuestionList) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                _scrollToCurrentQuestion();
+                        if (widget.showQuestionList)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.menu,
+                              size: 28,
+                              color: Color.fromARGB(255, 154, 153, 153),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _showQuestionList = !_showQuestionList;
                               });
-                            }
-                          },
-                        ),
+
+                              if (_showQuestionList) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  _scrollToCurrentQuestion();
+                                });
+                              }
+                            },
+                          ),
                       ],
                     ),
                   ),
 
-                  if (_showQuestionList)
+                  if (widget.showQuestionList && _showQuestionList)
                     Container(
                       constraints: const BoxConstraints(maxHeight: 200),
                       color: Colors.grey.shade50,

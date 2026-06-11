@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:toeic_prep/widgets/header.dart';
+import 'package:toeic_prep/screens/home/simulasi/periksa_jawaban_screen.dart';
 
 class ResultScreen extends StatelessWidget {
   final int score;
+  final List soalList;
+  final Map<int, String> userAnswers;
 
-  const ResultScreen({super.key, required this.score});
+  const ResultScreen({
+    super.key,
+    required this.score,
+    required this.soalList,
+    required this.userAnswers,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,12 +26,7 @@ class ResultScreen extends StatelessWidget {
       body: Column(
         children: [
           // HEADER DARI header.dart
-          Header(
-            title: 'HASIL LATIHAN',
-            onBack: () {
-              Navigator.pop(context);
-            },
-          ),
+          Header(title: 'HASIL LATIHAN', showBackButton: false),
 
           // CONTENT
           Expanded(
@@ -78,6 +81,7 @@ class ResultScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 30),
+                  const Spacer(),
 
                   // BUTTON CEK JAWABAN
                   SizedBox(
@@ -92,8 +96,16 @@ class ResultScreen extends StatelessWidget {
                         elevation: 0,
                       ),
                       onPressed: () {
-                        // TODO:
-                        // Navigasi ke halaman pembahasan jawaban
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PeriksaJawabanScreen(
+                              soalList: soalList,
+                              userAnswers: userAnswers,
+                              showQuestionList: false,
+                            ),
+                          ),
+                        );
                       },
                       child: const Text(
                         'Periksa Jawaban',
