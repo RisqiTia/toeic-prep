@@ -187,7 +187,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
         _goToResult(soalList, _calculateScore(soalList));
       }
     } catch (e) {
-      debugPrint('❌ Submit error: $e');
+      debugPrint('Submit error: $e');
       // Tetap lanjutkan meski gagal simpan
       _goToResult(soalList, _calculateScore(soalList));
     } finally {
@@ -199,7 +199,13 @@ class _LatihanSoalState extends State<LatihanSoal> {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => ResultScreen(score: score)),
+      MaterialPageRoute(
+        builder: (_) => ResultScreen(
+          score: score,
+          soalList: soalList,
+          userAnswers: _userAnswers,
+        ),
+      ),
     );
   }
 
