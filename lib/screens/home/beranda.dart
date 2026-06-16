@@ -3,7 +3,8 @@ import 'package:toeic_prep/screens/home/materi/materials.dart';
 import 'package:toeic_prep/screens/home/latihan/latihan.dart';
 import 'package:toeic_prep/screens/riwayat/riwayat_screen.dart';
 import 'package:toeic_prep/screens/profile/profil_screen.dart';
-import 'package:toeic_prep/widgets/widgets.dart';
+import 'package:toeic_prep/widgets/bottom_navbar.dart';
+import 'package:toeic_prep/widgets/menu_card.dart';
 import 'package:toeic_prep/screens/home/simulasi/simulasi_screen.dart';
 import 'package:toeic_prep/services/user_session.dart';
 
@@ -31,14 +32,18 @@ class _BerandaScreenState extends State<BerandaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: _buildBody(),
-      bottomNavigationBar: CustomBottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+      bottomNavigationBar: Container(
+        color: Colors.grey.shade100,
+        child: CustomBottomNavBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+        ),
       ),
     );
   }

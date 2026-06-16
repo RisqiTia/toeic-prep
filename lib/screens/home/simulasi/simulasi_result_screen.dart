@@ -273,7 +273,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                       ),
                     ),
                     Text(
-                      'dari 900',
+                      'dari 990',
                       style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                     ),
                     const SizedBox(height: 12),
@@ -351,7 +351,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                       iconColor: Colors.blue[400]!,
                       label: 'Listening',
                       score: widget.listeningScore,
-                      maxScore: 500,
+                      maxScore: 495,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -361,7 +361,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                       iconColor: Colors.teal[400]!,
                       label: 'Reading',
                       score: widget.readingScore,
-                      maxScore: 400,
+                      maxScore: 495,
                     ),
                   ),
                 ],
@@ -435,6 +435,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                         builder: (_) => PeriksaJawabanScreen(
                           soalList: widget.soalList,
                           userAnswers: widget.userAnswers,
+                          showQuestionList: true,
                         ),
                       ),
                     );

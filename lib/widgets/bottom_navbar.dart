@@ -17,7 +17,7 @@ class CustomBottomNavBar extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 241, 245, 249), // kotak putih dalam
+          color: const Color.fromARGB(255, 224, 235, 250), // kotak putih dalam
           borderRadius: BorderRadius.circular(25),
         ),
         child: Row(
@@ -44,7 +44,9 @@ class CustomBottomNavBar extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isActive ? const Color(0xFFDBEAFE) : Colors.transparent,
+                color: isActive
+                    ? const Color.fromARGB(255, 185, 207, 246)
+                    : Colors.transparent,
                 shape: BoxShape.circle,
               ),
               child: Icon(

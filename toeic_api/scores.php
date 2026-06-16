@@ -10,6 +10,7 @@
  */
 
 require_once 'config.php';
+require_once 'toeic_conversion.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -114,9 +115,9 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $weakPartsOrdered = array_values($partStats);
 
         // Skala TOEIC (maks 495 per bagian)
-        $listeningScore = $listeningCorrect * 5;
-        $readingScore   = $readingCorrect   * 4;
-        $totalScore     = $listeningScore + $readingScore;
+        $listeningScore = $listeningTable[$listeningCorrect] ?? 5;
+        $readingScore   = $readingTable[$readingCorrect] ?? 5;
+        $totalScore = $listeningScore + $readingScore;
 
         // Kategori skor keseluruhan
         if ($totalScore < 500) {

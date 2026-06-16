@@ -7,12 +7,16 @@ class PeriksaJawabanScreen extends StatefulWidget {
   final List soalList;
   final Map<int, String> userAnswers;
   final bool showQuestionList;
+  final String? partName;
+  final bool isPractice;
 
   const PeriksaJawabanScreen({
     super.key,
     required this.soalList,
     required this.userAnswers,
     this.showQuestionList = true,
+    this.isPractice = false,
+    this.partName,
   });
 
   @override
@@ -29,9 +33,16 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
   bool _showQuestionList = false;
 
   void _scrollToCurrentQuestion() {
-    const double itemSize = 40; // Sesuaikan dengan tinggi item di GridView
+    const itemHeight = 50.0;
+    const crossAxisCount = 8;
 
-    final double offset = (currentIndex ~/ 8) * itemSize;
+    final row = currentIndex ~/ crossAxisCount;
+
+    double offset = (row * itemHeight) - 120;
+
+    if (offset < 0) {
+      offset = 0;
+    }
 
     _questionScrollController.jumpTo(offset);
   }
@@ -174,23 +185,26 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 0),
 
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          soal.partId <= 4
-                              ? 'LISTENING SECTION'
-                              : 'READING SECTION',
-                          style: const TextStyle(
-                            color: Color(0xFF2563EB),
-                            fontWeight: FontWeight.bold,
+                  if (widget.showQuestionList)
+                    Padding(
+                      padding: EdgeInsets.zero,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            widget.isPractice
+                                ? widget.partName!.toUpperCase()
+                                : ((soal.partId <= 4)
+                                      ? 'LISTENING SECTION'
+                                      : 'READING SECTION'),
+                            style: const TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        if (widget.showQuestionList)
+
                           IconButton(
                             icon: const Icon(
                               Icons.menu,
@@ -211,27 +225,23 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
                               }
                             },
                           ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
 
                   if (widget.showQuestionList && _showQuestionList)
                     Container(
-                      constraints: const BoxConstraints(maxHeight: 200),
+                      height: 200,
                       color: Colors.grey.shade50,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.all(6),
                       child: GridView.builder(
                         controller: _questionScrollController,
                         shrinkWrap: true,
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 8,
-                              crossAxisSpacing: 2,
-                              mainAxisSpacing: 2,
-                              childAspectRatio: 1,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
                             ),
                         itemCount: widget.soalList.length,
                         itemBuilder: (context, index) {
@@ -255,7 +265,12 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
                               });
                             },
                             child: Container(
-                              margin: const EdgeInsets.all(2),
+                              width: 42,
+                              height: 42,
+                              margin: const EdgeInsets.only(
+                                right: 6,
+                                bottom: 4,
+                              ),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: isCurrent
@@ -274,6 +289,7 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
                                 child: Text(
                                   '${index + 1}',
                                   style: TextStyle(
+                                    fontSize: 13,
                                     fontWeight: FontWeight.bold,
                                     color: isCurrent
                                         ? Colors.white
@@ -373,6 +389,8 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
                                 ),
                               ),
                             ),
+
+                          const SizedBox(height: 20),
 
                           if (soal.questionText.isNotEmpty)
                             Padding(
