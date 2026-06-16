@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'services/user_session.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/beranda.dart';
-import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +22,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
         useMaterial3: true,
-        fontFamily: 'Inter',
+        // Terapkan Poppins ke seluruh app sekaligus
+        textTheme: GoogleFonts.poppinsTextTheme(),
       ),
       home: const SplashRouter(),
     );
@@ -49,7 +51,6 @@ class _SplashRouterState extends State<SplashRouter> {
     if (!mounted) return;
 
     if (loggedIn) {
-      // Ambil data user yang tersimpan dari sesi
       final userData = await UserSession.get();
 
       if (!mounted) return;
@@ -58,10 +59,11 @@ class _SplashRouterState extends State<SplashRouter> {
         context,
         MaterialPageRoute(
           builder: (_) => BerandaScreen(
-            userId: userData?['id'] ?? 0,
-            userName: userData?['name'] ?? 'Pengguna',
-            userEmail: userData?['email'] ?? '',
-            skillLevel: userData?['skill_level'] ?? 'beginner',
+            userId    : userData?['id']          ?? 0,
+            userName  : userData?['name']         ?? 'Pengguna',
+            userEmail : userData?['email']        ?? '',
+            skillLevel: userData?['skill_level']  ?? 'beginner',
+            userPhoto : userData?['foto_profil']  ?? '', // ← foto profil dari sesi
           ),
         ),
       );
@@ -75,7 +77,7 @@ class _SplashRouterState extends State<SplashRouter> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
         child: Column(
@@ -83,15 +85,15 @@ class _SplashRouterState extends State<SplashRouter> {
           children: [
             Text(
               'TOEIC Prep',
-              style: TextStyle(
-                fontSize: 32,
+              style: GoogleFonts.poppins(
+                fontSize  : 32,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2563EB),
+                color     : const Color(0xFF2563EB),
               ),
             ),
-            SizedBox(height: 12),
-            CircularProgressIndicator(
-              color: Color(0xFF2563EB),
+            const SizedBox(height: 12),
+            const CircularProgressIndicator(
+              color      : Color(0xFF2563EB),
               strokeWidth: 2.5,
             ),
           ],
