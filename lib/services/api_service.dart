@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -9,9 +10,9 @@ class ApiService {
   // static const String apiBaseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
   // static const String mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
   static const String apiBaseUrl =
-      'http://192.168.1.9/toeic_prep_app/toeic_api';
+      'http://10.34.87.156/toeic_prep_app/toeic_api';
   static const String mediaBaseUrl =
-      'http://192.168.1.9/toeic_dataset_generator';
+      'http://10.34.87.156/toeic_dataset_generator';
 
   // ─── AUTH ─────────────────────────────────────────────────────
 
@@ -90,6 +91,47 @@ class ApiService {
       return jsonDecode(res.body);
     } catch (e) {
       return {'status': 'error', 'message': 'Gagal mengubah kata sandi.'};
+    }
+  }
+
+  // Upload / ganti foto profil
+  static Future<Map<String, dynamic>> updateProfilePhoto({
+    required int  userId,
+    required File imageFile,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$apiBaseUrl/auth.php?action=update_photo'),
+      );
+      request.fields['user_id'] = userId.toString();
+      request.files.add(
+        await http.MultipartFile.fromPath('foto', imageFile.path),
+      );
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      print('PHOTO STATUS: ${response.statusCode}');
+      print('PHOTO BODY: ${response.body}');
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('PHOTO ERROR: $e');
+      return {'status': 'error', 'message': 'Gagal mengunggah foto.'};
+    }
+  }
+
+  // Hapus foto profil
+  static Future<Map<String, dynamic>> deleteProfilePhoto({
+    required int userId,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$apiBaseUrl/auth.php?action=delete_photo'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId}),
+      );
+      return jsonDecode(res.body);
+    } catch (e) {
+      return {'status': 'error', 'message': 'Gagal menghapus foto.'};
     }
   }
 

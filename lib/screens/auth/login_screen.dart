@@ -21,7 +21,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading    = false;
   String? _errorMessage;
 
-  // ── Auto-fill saat halaman pertama kali dibuka ──────────────
   @override
   void initState() {
     super.initState();
@@ -30,12 +29,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadSavedCredentials() async {
     final saved = await UserSession.getSavedCredentials();
-    print('📦 Kredensial tersimpan: $saved'); // ← tambah ini
     if (saved != null) {
       setState(() {
         _emailController.text = saved['email']    ?? '';
         _passController.text  = saved['password'] ?? '';
-        _rememberMe           = true; // centang otomatis
+        _rememberMe           = true;
       });
     }
   }
@@ -66,13 +64,14 @@ class _LoginScreenState extends State<LoginScreen> {
       // Hapus sesi lama dulu sebelum simpan sesi baru
       await UserSession.clear();
 
-      // Simpan sesi user
+      // Simpan sesi user termasuk foto_profil
       await UserSession.save(
         id        : user['id'],
         name      : user['name'],
         email     : user['email'],
         skillLevel: user['skill_level'] ?? 'beginner',
         rememberMe: _rememberMe,
+        fotoProfil: user['foto_profil'] ?? '', // ← tambahan
       );
 
       // Simpan atau hapus kredensial berdasarkan checkbox Ingat Saya
@@ -81,10 +80,8 @@ class _LoginScreenState extends State<LoginScreen> {
           _emailController.text.trim(),
           _passController.text,
         );
-        print('✅ Kredensial disimpan: ${_emailController.text.trim()}'); // ← tambah ini
       } else {
         await UserSession.clearCredentials();
-        print('❌ Kredensial dihapus'); // ← tambah ini
       }
 
       if (!mounted) return;
@@ -96,6 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
             userName  : user['name'],
             userEmail : user['email'],
             skillLevel: user['skill_level'] ?? 'beginner',
+            userPhoto : user['foto_profil'] ?? '', // ← tambahan
           ),
         ),
         (_) => false,
