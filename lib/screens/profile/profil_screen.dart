@@ -328,7 +328,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
           TextButton(
             onPressed: () async {
               await UserSession.clear();
-              if (!context.mounted) return;
+              if (!mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -701,7 +701,7 @@ class _TopNotifWidgetState extends State<_TopNotifWidget>
               decoration: BoxDecoration(
                 color: widget.isError
                     ? const Color(0xFFEF4444)
-                    : const Color(0xFF2563EB),
+                    : const Color(0xFF4CAF50),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(

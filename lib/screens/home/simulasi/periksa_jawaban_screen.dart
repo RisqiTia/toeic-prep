@@ -185,8 +185,6 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 0),
-
                   if (widget.showQuestionList)
                     Padding(
                       padding: EdgeInsets.zero,
@@ -592,7 +590,7 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
             child: Text(
               option,
               style: const TextStyle(
-                color: Colors.white,
+                color: Color.fromARGB(255, 255, 255, 255),
                 fontWeight: FontWeight.bold,
               ),
             ),

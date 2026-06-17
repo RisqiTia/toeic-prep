@@ -307,18 +307,23 @@ class _LatihanSoalState extends State<LatihanSoal> {
     }
   }
 
-  void _goPrev() {
-    _audioPlayer.stop();
-
-    _currentAudioFile = null;
-
-    _audioCompleted = false;
-
-    setState(() {
-      _isPlaying = false;
-    });
-
+  void _goPrev(List<LatihanSoalModel> soalList) {
     if (_currentIndex > 0) {
+      final prevSoal = soalList[_currentIndex - 1];
+
+      // Berhenti jika audio berbeda
+      if (prevSoal.audioFile != _currentAudioFile) {
+        _audioPlayer.stop();
+
+        _currentAudioFile = null;
+
+        _audioCompleted = false;
+
+        setState(() {
+          _isPlaying = false;
+        });
+      }
+
       setState(() {
         _currentIndex--;
         _selectedAnswer = _userAnswers[_currentIndex];
@@ -347,6 +352,118 @@ class _LatihanSoalState extends State<LatihanSoal> {
       row * itemHeight,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
+    );
+  }
+
+  void _showExitDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Keluar Latihan?',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text('Progres latihan akan hilang. Yakin keluar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Lanjutkan',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSubmitDialog(List<LatihanSoalModel> soalList) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.amber,
+                  size: 36,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              const Text(
+                'SELESAIKAN LATIHAN',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 8),
+
+              const Text(
+                'Kamu bisa menyelesaikan latihan sekarang atau memeriksa kembali jawabanmu sebelum dikirim.',
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 24),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text(
+                        'Cek Kembali',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _submitAnswers(soalList);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                      ),
+                      child: const Text(
+                        'Kirim',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -395,6 +512,12 @@ class _LatihanSoalState extends State<LatihanSoal> {
           final soal = soalList[_currentIndex];
           final total = soalList.length;
 
+          final currentAudio = soal.audioFile;
+
+          final jumlahSoalAudio = soalList
+              .where((s) => s.audioFile == currentAudio)
+              .length;
+
           return SafeArea(
             child: Column(
               children: [
@@ -413,7 +536,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: _showExitDialog,
                         child: Container(
                           width: 36,
                           height: 36,
@@ -534,20 +657,28 @@ class _LatihanSoalState extends State<LatihanSoal> {
                         final isCurrent = index == _currentIndex;
 
                         return GestureDetector(
-                          onTap: () {
-                            _audioPlayer.stop();
+                          onTap: () async {
+                            final targetSoal = soalList[index];
 
-                            _currentAudioFile = null;
-                            _audioCompleted = false;
+                            // Berhenti saat audio beda
+                            if (targetSoal.audioFile != _currentAudioFile) {
+                              _audioPlayer.stop();
+
+                              _currentAudioFile = null;
+                              _audioCompleted = false;
+
+                              setState(() {
+                                _isPlaying = false;
+                              });
+                            }
 
                             setState(() {
-                              _isPlaying = false;
-
                               _currentIndex = index;
                               _selectedAnswer = _userAnswers[index];
                               _showQuestionList = false;
                             });
                           },
+
                           child: Container(
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
@@ -626,6 +757,36 @@ class _LatihanSoalState extends State<LatihanSoal> {
                           const SizedBox(height: 16),
 
                         // ── AUDIO PLAYER (Part 1-4)
+                        if ((widget.partId == 3 || widget.partId == 4) &&
+                            soal.audioFile != null &&
+                            soal.audioFile!.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.blue.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.record_voice_over,
+                                  color: Colors.blue,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Audio ini digunakan untuk menjawab $jumlahSoalAudio pertanyaan yang saling terkait.',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                         if (_isListening &&
                             soal.audioFile != null &&
                             soal.audioFile!.isNotEmpty)
@@ -809,7 +970,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: _currentIndex > 0 && !_isSubmitting
-                              ? () => _goPrev()
+                              ? () => _goPrev(soalList)
                               : null,
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -850,7 +1011,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
                                     _goNext(soalList);
                                   } else {
                                     // Soal terakhir → submit ke server
-                                    _submitAnswers(soalList);
+                                    _showSubmitDialog(soalList);
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
