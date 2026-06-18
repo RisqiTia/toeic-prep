@@ -157,6 +157,12 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
 
     final correctAnswer = soal.correctAnswer;
 
+    final int totalQuestion = widget.soalList.length;
+
+    final int totalRow = (totalQuestion / 8).ceil();
+
+    final double questionListHeight = (totalRow * 50).clamp(60, 200).toDouble();
+
     return Scaffold(
       body: Column(
         children: [
@@ -227,9 +233,10 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
                       ),
                     ),
 
+                  // List Nomor
                   if (widget.showQuestionList && _showQuestionList)
                     Container(
-                      height: 200,
+                      height: questionListHeight,
                       color: Colors.grey.shade50,
                       padding: const EdgeInsets.all(6),
                       child: GridView.builder(
@@ -266,8 +273,8 @@ class _PeriksaJawabanScreenState extends State<PeriksaJawabanScreen> {
                               width: 42,
                               height: 42,
                               margin: const EdgeInsets.only(
-                                right: 6,
-                                bottom: 4,
+                                right: 2,
+                                bottom: 2,
                               ),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,

@@ -739,7 +739,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                 // ── Nomor Soal (expanded/grid) ────────────
                 if (_showQuestionList)
                   Container(
-                    height: 220,
+                    constraints: const BoxConstraints(maxHeight: 200),
                     color: Colors.grey.shade50,
                     padding: const EdgeInsets.all(12),
 
@@ -751,8 +751,8 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 8,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 4,
+                            mainAxisSpacing: 4,
                           ),
 
                       itemBuilder: (context, index) {
@@ -1134,7 +1134,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
               ? const Color(0xFF2563EB)
               : isAnswered
               ? Colors.blue[100]
-              : Colors.white,
+              : Colors.grey.shade200,
           border: Border.all(
             color: isCurrent ? const Color(0xFF2563EB) : Colors.grey[300]!,
           ),
