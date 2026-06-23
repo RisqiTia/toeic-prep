@@ -7,12 +7,12 @@ class ApiService {
   // Kalau pakai emulator Android  → 10.0.2.2
   // Kalau pakai HP fisik          → cek IP WiFi kamu (misal: 192.168.1.5)
   // Kalau pakai browser/web       → localhost
-  // static const String apiBaseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
-  // static const String mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
-  static const String apiBaseUrl =
-      'http://10.34.87.156/toeic_prep_app/toeic_api';
-  static const String mediaBaseUrl =
-      'http://10.34.87.156/toeic_dataset_generator';
+  static const String apiBaseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
+  static const String mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
+  // static const String apiBaseUrl =
+  // 'http://192.168.1.9/toeic_prep_app/toeic_api';
+  // static const String mediaBaseUrl =
+  //     'http://192.168.1.9/toeic_dataset_generator';
 
   // ─── AUTH ─────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ class ApiService {
 
   // Upload / ganti foto profil
   static Future<Map<String, dynamic>> updateProfilePhoto({
-    required int  userId,
+    required int userId,
     required File imageFile,
   }) async {
     try {

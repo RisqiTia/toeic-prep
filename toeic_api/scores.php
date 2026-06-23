@@ -3,10 +3,13 @@
  * scores.php  — versi diperbarui
  *
  * Perubahan utama:
- *  - Simulasi sekarang juga mengembalikan `weak_parts` (daftar part_id
+ *  - Perhitungan skor simulasi kini menggunakan tabel konversi
+ *    `toeic_score_conversion` (raw_score → scaled_score) sebagai
+ *    pengganti rumus tetap sebelumnya.
+ *  - Simulasi mengembalikan `weak_parts` (daftar part_id
  *    yang skornya rendah, diurutkan dari yang terlemah) beserta
  *    `weak_parts_info` (nama part) untuk kebutuhan rekomendasi latihan.
- *  - Threshold naik level diubah sesuai permintaan: >= 500 naik level.
+ *  - Threshold naik level: >= 500 naik level.
  */
 
 require_once 'config.php';
@@ -113,10 +116,29 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         uasort($partStats, fn($a, $b) => $a['accuracy'] <=> $b['accuracy']);
         $weakPartsOrdered = array_values($partStats);
 
-        // Skala TOEIC (maks 495 per bagian)
-        $listeningScore = $listeningCorrect * 5;
-        $readingScore   = $readingCorrect   * 4;
-        $totalScore     = $listeningScore + $readingScore;
+        // ── HITUNG SKOR DENGAN TABEL KONVERSI ──────────────────
+        // Lookup scaled_score dari tabel toeic_score_conversion
+        // berdasarkan jumlah jawaban benar per section (raw_score)
+        $stmtConvL = $pdo->prepare("
+            SELECT scaled_score
+            FROM toeic_score_conversion
+            WHERE section = 'listening' AND raw_score = ?
+        ");
+        $stmtConvL->execute([$listeningCorrect]);
+        $rowL = $stmtConvL->fetch();
+        $listeningScore = $rowL ? (int)$rowL['scaled_score'] : 5;
+
+        $stmtConvR = $pdo->prepare("
+            SELECT scaled_score
+            FROM toeic_score_conversion
+            WHERE section = 'reading' AND raw_score = ?
+        ");
+        $stmtConvR->execute([$readingCorrect]);
+        $rowR = $stmtConvR->fetch();
+        $readingScore = $rowR ? (int)$rowR['scaled_score'] : 5;
+
+        $totalScore = $listeningScore + $readingScore;
+        // ────────────────────────────────────────────────────────
 
         // Kategori skor keseluruhan
         if ($totalScore < 500) {
@@ -159,10 +181,8 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         // Motivasi
         $motivation = getMotivation($pdo, $scoreCategory, $listeningLevel, $readingLevel);
 
-        // --- Tentukan part yang lemah untuk rekomendasi ---
-        // Ambil 3 part terlemah (untuk skor <= 400), atau 2 part (400 < skor < 500)
-        // Keputusan jumlah part diambil di sisi Flutter berdasarkan totalScore;
-        // kita kirim semua part urut terlemah agar Flutter bisa memilih.
+        // Kirim semua part urut terlemah agar Flutter bisa memilih
+        // sesuai jumlah yang dibutuhkan (2 atau 3 part)
         $weakParts = array_map(fn($p) => [
             'part_id'   => $p['part_id'],
             'part_name' => $p['part_name'],
@@ -186,7 +206,7 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             "listening_level" => $listeningLevel,
             "reading_level"   => $readingLevel,
             "motivation"      => $motivation,
-            "weak_parts"      => $weakParts,   // ← BARU: daftar part terlemah (semua 7 part, urut asc akurasi)
+            "weak_parts"      => $weakParts,
         ]);
 
     // ── LATIHAN ───────────────────────────────────────────────
