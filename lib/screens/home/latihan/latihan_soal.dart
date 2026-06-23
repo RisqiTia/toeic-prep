@@ -28,9 +28,11 @@ class _LatihanSoalState extends State<LatihanSoal> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
   bool _isLoadingAudio = false;
+  bool _audioCompleted = false;
   bool _isSubmitting = false; // ← loading saat submit
 
   int _currentIndex = 0;
+  bool _showQuestionList = false;
   String? _selectedAnswer;
   final Map<int, String> _userAnswers = {};
 
@@ -39,6 +41,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
 
   // Untuk Part 3 & 4 — track audio yang sedang aktif
   String? _currentAudioFile;
+  final ScrollController _questionScrollController = ScrollController();
 
   bool get _isListening => widget.partId >= 1 && widget.partId <= 4;
   bool get _hasImage => widget.partId == 1;
@@ -48,13 +51,23 @@ class _LatihanSoalState extends State<LatihanSoal> {
   void initState() {
     super.initState();
     _soalFuture = _fetchSoal();
+    _audioPlayer.onPlayerComplete.listen((event) {
+      if (!mounted) return;
+
+      setState(() {
+        _isPlaying = false;
+        _audioCompleted = true;
+        _currentAudioFile = null;
+        _isLoadingAudio = false;
+      });
+    });
+
     _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = state == PlayerState.playing;
-          if (state == PlayerState.completed) _isLoadingAudio = false;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        _isPlaying = state == PlayerState.playing;
+      });
     });
   }
 
@@ -204,12 +217,13 @@ class _LatihanSoalState extends State<LatihanSoal> {
           score: score,
           soalList: soalList,
           userAnswers: _userAnswers,
+          partName: widget.partName,
         ),
       ),
     );
   }
 
-  // ─── Hitung Skor Lokal (fallback) ────────────────────────────────────────
+  // ─── Hitung Skor Lokal ────────────────────────────────────────
 
   int _calculateScore(List<LatihanSoalModel> soalList) {
     int correct = 0;
@@ -225,6 +239,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
     if (_currentAudioFile != audioFile) {
       await _audioPlayer.stop();
       _currentAudioFile = audioFile;
+      _audioCompleted = false;
       setState(() {
         _isPlaying = false;
         _isLoadingAudio = true;
@@ -244,17 +259,32 @@ class _LatihanSoalState extends State<LatihanSoal> {
 
     if (_isPlaying) {
       await _audioPlayer.pause();
-      setState(() => _isPlaying = false);
-    } else {
-      setState(() => _isLoadingAudio = true);
-      try {
-        await _audioPlayer.resume();
-        setState(() => _isLoadingAudio = false);
-      } catch (e) {
-        debugPrint('❌ Audio error: $e');
-        setState(() => _isLoadingAudio = false);
-      }
+
+      setState(() {
+        _isPlaying = false;
+      });
+
+      return;
     }
+
+    if (_audioCompleted) {
+      await _audioPlayer.seek(Duration.zero);
+
+      await _audioPlayer.resume();
+
+      setState(() {
+        _audioCompleted = false;
+        _isPlaying = true;
+      });
+
+      return;
+    }
+
+    await _audioPlayer.resume();
+
+    setState(() {
+      _isPlaying = true;
+    });
   }
 
   // ─── Navigasi Soal ───────────────────────────────────────────────────────
@@ -264,9 +294,10 @@ class _LatihanSoalState extends State<LatihanSoal> {
       final nextSoal = soalList[_currentIndex + 1];
       if (nextSoal.audioFile != _currentAudioFile) {
         _audioPlayer.stop();
+        _currentAudioFile = null;
+        _audioCompleted = false;
         setState(() {
           _isPlaying = false;
-          _currentAudioFile = null;
         });
       }
       setState(() {
@@ -276,8 +307,23 @@ class _LatihanSoalState extends State<LatihanSoal> {
     }
   }
 
-  void _goPrev() {
+  void _goPrev(List<LatihanSoalModel> soalList) {
     if (_currentIndex > 0) {
+      final prevSoal = soalList[_currentIndex - 1];
+
+      // Berhenti jika audio berbeda
+      if (prevSoal.audioFile != _currentAudioFile) {
+        _audioPlayer.stop();
+
+        _currentAudioFile = null;
+
+        _audioCompleted = false;
+
+        setState(() {
+          _isPlaying = false;
+        });
+      }
+
       setState(() {
         _currentIndex--;
         _selectedAnswer = _userAnswers[_currentIndex];
@@ -287,9 +333,138 @@ class _LatihanSoalState extends State<LatihanSoal> {
 
   void _selectAnswer(String answer) {
     setState(() {
-      _selectedAnswer = answer;
-      _userAnswers[_currentIndex] = answer;
+      if (_selectedAnswer == answer) {
+        _selectedAnswer = null;
+        _userAnswers.remove(_currentIndex);
+      } else {
+        _selectedAnswer = answer;
+        _userAnswers[_currentIndex] = answer;
+      }
     });
+  }
+
+  void _scrollToCurrentQuestion() {
+    const double itemHeight = 50;
+
+    final row = _currentIndex ~/ 8;
+
+    _questionScrollController.animateTo(
+      row * itemHeight,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _showExitDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Keluar Latihan?',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text('Progres latihan akan hilang. Yakin keluar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Lanjutkan',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSubmitDialog(List<LatihanSoalModel> soalList) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.amber,
+                  size: 36,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              const Text(
+                'SELESAIKAN LATIHAN',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 8),
+
+              const Text(
+                'Kamu bisa menyelesaikan latihan sekarang atau memeriksa kembali jawabanmu sebelum dikirim.',
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 24),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text(
+                        'Cek Kembali',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _submitAnswers(soalList);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                      ),
+                      child: const Text(
+                        'Kirim',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ─── Build ───────────────────────────────────────────────────────────────
@@ -337,19 +512,31 @@ class _LatihanSoalState extends State<LatihanSoal> {
           final soal = soalList[_currentIndex];
           final total = soalList.length;
 
+          final currentAudio = soal.audioFile;
+
+          final jumlahSoalAudio = soalList
+              .where((s) => s.audioFile == currentAudio)
+              .length;
+
           return SafeArea(
             child: Column(
               children: [
                 // ── Top Bar ────────────────────────────────────────────────
-                Padding(
+                Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey[200]!),
+                    ),
                   ),
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: _showExitDialog,
                         child: Container(
                           width: 36,
                           height: 36,
@@ -357,34 +544,171 @@ class _LatihanSoalState extends State<LatihanSoal> {
                             color: Colors.grey[100],
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.close, size: 20),
+                          child: const Icon(Icons.close),
                         ),
                       ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: (_currentIndex + 1) / total,
-                              backgroundColor: Colors.grey[200],
-                              color: const Color(0xFF2563EB),
-                              minHeight: 6,
-                            ),
-                          ),
-                        ),
-                      ),
+
+                      const Spacer(),
+
                       Text(
                         'Question ${_currentIndex + 1} of $total',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            widget.partName.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2563EB),
+                            ),
+                          ),
+
+                          const Spacer(),
+
+                          IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _showQuestionList = !_showQuestionList;
+                              });
+
+                              if (_showQuestionList) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  _scrollToCurrentQuestion();
+                                });
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.menu,
+                              size: 28,
+                              color: Color.fromARGB(255, 154, 153, 153),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      Row(
+                        children: [
+                          Text(
+                            '${_userAnswers.length} / $total Terjawab',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+
+                          const Spacer(),
+
+                          Text(
+                            '${((_userAnswers.length / total) * 100).round()}%',
+                            style: const TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          value: _userAnswers.length / total,
+                          minHeight: 8,
+                          backgroundColor: Colors.grey.shade300,
+                          color: const Color(0xFF2563EB),
                         ),
                       ),
                     ],
                   ),
                 ),
+
+                if (_showQuestionList)
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    color: Colors.grey.shade50,
+                    padding: const EdgeInsets.all(12),
+                    child: GridView.builder(
+                      controller: _questionScrollController,
+                      shrinkWrap: true,
+                      itemCount: soalList.length,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 8,
+                            crossAxisSpacing: 4,
+                            mainAxisSpacing: 4,
+                          ),
+                      itemBuilder: (context, index) {
+                        final isAnswered = _userAnswers.containsKey(index);
+
+                        final isCurrent = index == _currentIndex;
+
+                        return GestureDetector(
+                          onTap: () async {
+                            final targetSoal = soalList[index];
+
+                            // Berhenti saat audio beda
+                            if (targetSoal.audioFile != _currentAudioFile) {
+                              _audioPlayer.stop();
+
+                              _currentAudioFile = null;
+                              _audioCompleted = false;
+
+                              setState(() {
+                                _isPlaying = false;
+                              });
+                            }
+
+                            setState(() {
+                              _currentIndex = index;
+                              _selectedAnswer = _userAnswers[index];
+                              _showQuestionList = false;
+                            });
+                          },
+
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isCurrent
+                                  ? const Color(0xFF2563EB)
+                                  : isAnswered
+                                  ? Colors.blue.shade100
+                                  : Colors.grey.shade200,
+                              border: Border.all(
+                                color: isCurrent
+                                    ? const Color(0xFF2563EB)
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${index + 1}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isCurrent
+                                      ? Colors.white
+                                      : Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
 
                 // ── Konten Soal ────────────────────────────────────────────
                 Expanded(
@@ -433,6 +757,36 @@ class _LatihanSoalState extends State<LatihanSoal> {
                           const SizedBox(height: 16),
 
                         // ── AUDIO PLAYER (Part 1-4)
+                        if ((widget.partId == 3 || widget.partId == 4) &&
+                            soal.audioFile != null &&
+                            soal.audioFile!.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.blue.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.record_voice_over,
+                                  color: Colors.blue,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Audio ini digunakan untuk menjawab $jumlahSoalAudio pertanyaan yang saling terkait.',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                         if (_isListening &&
                             soal.audioFile != null &&
                             soal.audioFile!.isNotEmpty)
@@ -519,78 +873,83 @@ class _LatihanSoalState extends State<LatihanSoal> {
                           ),
 
                         // ── PILIHAN JAWABAN
-                        ...['A', 'B', 'C', 'D'].map((key) {
-                          final text = key == 'A'
-                              ? soal.optionA
-                              : key == 'B'
-                              ? soal.optionB
-                              : key == 'C'
-                              ? soal.optionC
-                              : soal.optionD;
-                          final isSelected = _selectedAnswer == key;
+                        ...(widget.partId == 2
+                                ? ['A', 'B', 'C']
+                                : ['A', 'B', 'C', 'D'])
+                            .map((key) {
+                              final text = key == 'A'
+                                  ? soal.optionA
+                                  : key == 'B'
+                                  ? soal.optionB
+                                  : key == 'C'
+                                  ? soal.optionC
+                                  : soal.optionD;
 
-                          return GestureDetector(
-                            onTap: () => _selectAnswer(key),
-                            child: Container(
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: _hideOptionText ? 12 : 16,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? Colors.blue[50]
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF2563EB)
-                                      : Colors.grey[300]!,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
+                              final isSelected = _selectedAnswer == key;
+
+                              return GestureDetector(
+                                onTap: () => _selectAnswer(key),
+                                child: Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: _hideOptionText ? 12 : 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? Colors.blue[50]
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
                                       color: isSelected
                                           ? const Color(0xFF2563EB)
-                                          : Colors.grey[100],
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        key,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                          color: isSelected
-                                              ? Colors.white
-                                              : Colors.black87,
-                                        ),
-                                      ),
+                                          : Colors.grey[300]!,
+                                      width: isSelected ? 2 : 1,
                                     ),
                                   ),
-                                  if (!_hideOptionText) ...[
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        text,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.black87,
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: isSelected
+                                              ? const Color(0xFF2563EB)
+                                              : Colors.grey[100],
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            key,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          );
-                        }),
+
+                                      if (!_hideOptionText) ...[
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            text,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
                       ],
                     ),
                   ),
@@ -611,21 +970,33 @@ class _LatihanSoalState extends State<LatihanSoal> {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: _currentIndex > 0 && !_isSubmitting
-                              ? () => _goPrev()
+                              ? () => _goPrev(soalList)
                               : null,
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
+
+                            backgroundColor: _currentIndex == 0
+                                ? Colors.grey.shade200
+                                : Colors.white,
+
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            side: BorderSide(color: Colors.grey[300]!),
+
+                            side: BorderSide(
+                              color: _currentIndex == 0
+                                  ? Colors.grey.shade300
+                                  : Colors.grey.shade400,
+                            ),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Sebelumnya',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.black87,
                               fontWeight: FontWeight.w500,
+                              color: _currentIndex == 0
+                                  ? Colors.grey
+                                  : Colors.black87,
                             ),
                           ),
                         ),
@@ -640,7 +1011,7 @@ class _LatihanSoalState extends State<LatihanSoal> {
                                     _goNext(soalList);
                                   } else {
                                     // Soal terakhir → submit ke server
-                                    _submitAnswers(soalList);
+                                    _showSubmitDialog(soalList);
                                   }
                                 },
                           style: ElevatedButton.styleFrom(

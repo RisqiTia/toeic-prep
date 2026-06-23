@@ -7,12 +7,14 @@ class ResultScreen extends StatelessWidget {
   final int score;
   final List soalList;
   final Map<int, String> userAnswers;
+  final String partName;
 
   const ResultScreen({
     super.key,
     required this.score,
     required this.soalList,
     required this.userAnswers,
+    required this.partName,
   });
 
   @override
@@ -102,11 +104,14 @@ class ResultScreen extends StatelessWidget {
                             builder: (_) => PeriksaJawabanScreen(
                               soalList: soalList,
                               userAnswers: userAnswers,
-                              showQuestionList: false,
+                              partName: partName,
+                              isPractice: true,
+                              showQuestionList: true,
                             ),
                           ),
                         );
                       },
+
                       child: const Text(
                         'Periksa Jawaban',
                         style: TextStyle(

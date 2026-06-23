@@ -23,7 +23,9 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   bool _isPlaying = false;
   bool _isLoadingAudio = false;
   String? _currentAudioFile;
-  bool _audioCompleted = false;
+  bool _audioAlreadyPlayed = false;
+
+  final Set<String> _playedAudios = {};
 
   int _currentIndex = 0;
   final Map<int, String> _userAnswers = {};
@@ -45,9 +47,13 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     _audioPlayer.onPlayerComplete.listen((event) {
       if (!mounted) return;
 
+      if (_currentAudioFile != null) {
+        _playedAudios.add(_currentAudioFile!);
+      }
+
       setState(() {
         _isPlaying = false;
-        _audioCompleted = true;
+        _audioAlreadyPlayed = true;
         _currentAudioFile = null;
         _isLoadingAudio = false;
       });
@@ -347,11 +353,18 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
   Future<void> _toggleAudio(String audioFile) async {
     // Audio berbeda
+    if (_playedAudios.contains(audioFile)) {
+      return;
+    }
+
+    if (_audioAlreadyPlayed) {
+      return;
+    }
+
     if (_currentAudioFile != audioFile) {
       await _audioPlayer.stop();
 
       _currentAudioFile = audioFile;
-      _audioCompleted = false;
 
       setState(() {
         _isLoadingAudio = true;
@@ -386,29 +399,32 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
       return;
     }
-
-    // Audio selesai → putar dari awal
-    if (_audioCompleted) {
-      _currentAudioFile = null;
-      _audioCompleted = false;
-
-      return _toggleAudio(audioFile);
-    }
-
-    // Audio pause → lanjutkan
-    await _audioPlayer.resume();
   }
 
-  void _goToQuestion(int index) {
+  Future<void> _goToQuestion(int index, List<LatihanSoalModel> soalList) async {
+    final targetSoal = soalList[index];
+    final currentSoal = soalList[_currentIndex];
+
+    // Stop hanya jika audio berbeda
+    if (currentSoal.audioFile != targetSoal.audioFile) {
+      if (_currentAudioFile != null) {
+        _playedAudios.add(_currentAudioFile!);
+
+        await _audioPlayer.stop();
+
+        _currentAudioFile = null;
+
+        setState(() {
+          _isPlaying = false;
+        });
+      }
+    }
+
     setState(() {
       _currentIndex = index;
       _selectedAnswer = _userAnswers[index];
       _showQuestionList = false;
     });
-    _audioPlayer.stop();
-    _currentAudioFile = null;
-    _audioCompleted = false;
-    setState(() => _isPlaying = false);
   }
 
   void _openQuestionList(int total) {
@@ -434,15 +450,26 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     }
   }
 
-  void _goNext(List<LatihanSoalModel> soalList) {
+  Future<void> _goNext(List<LatihanSoalModel> soalList) async {
     if (_currentIndex < soalList.length - 1) {
-      final next = soalList[_currentIndex + 1];
-      if (next.audioFile != _currentAudioFile) {
-        _audioPlayer.stop();
-        _currentAudioFile = null;
-        _audioCompleted = false;
-        setState(() => _isPlaying = false);
+      final currentSoal = soalList[_currentIndex];
+      final nextSoal = soalList[_currentIndex + 1];
+
+      // Behenti hanya jika audio berbeda
+      if (currentSoal.audioFile != nextSoal.audioFile) {
+        if (_currentAudioFile != null) {
+          _playedAudios.add(_currentAudioFile!);
+
+          await _audioPlayer.stop();
+
+          _currentAudioFile = null;
+
+          setState(() {
+            _isPlaying = false;
+          });
+        }
       }
+
       setState(() {
         _currentIndex++;
         _selectedAnswer = _userAnswers[_currentIndex];
@@ -450,19 +477,24 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     }
   }
 
-  void _goPrev(List<LatihanSoalModel> soalList) async {
+  Future<void> _goPrev(List<LatihanSoalModel> soalList) async {
     if (_currentIndex > 0) {
-      final prev = soalList[_currentIndex - 1];
+      final currentSoal = soalList[_currentIndex];
+      final prevSoal = soalList[_currentIndex - 1];
 
-      if (prev.audioFile != _currentAudioFile) {
-        await _audioPlayer.stop();
+      // Stop hanya jika audio berbeda
+      if (currentSoal.audioFile != prevSoal.audioFile) {
+        if (_currentAudioFile != null) {
+          _playedAudios.add(_currentAudioFile!);
 
-        _currentAudioFile = null;
-        _audioCompleted = false;
+          await _audioPlayer.stop();
 
-        setState(() {
-          _isPlaying = false;
-        });
+          _currentAudioFile = null;
+
+          setState(() {
+            _isPlaying = false;
+          });
+        }
       }
 
       setState(() {
@@ -540,6 +572,10 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
           final soal = soalList[_currentIndex];
           final total = soalList.length;
+          final currentAudio = soal.audioFile;
+          final jumlahSoalAudio = soalList
+              .where((s) => s.audioFile == currentAudio)
+              .length;
           final partId = soal.partId;
           final answeredCount = _userAnswers.length;
           final progress = answeredCount / total;
@@ -703,7 +739,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                 // ── Nomor Soal (expanded/grid) ────────────
                 if (_showQuestionList)
                   Container(
-                    height: 220,
+                    constraints: const BoxConstraints(maxHeight: 200),
                     color: Colors.grey.shade50,
                     padding: const EdgeInsets.all(12),
 
@@ -715,12 +751,12 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 8,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 4,
+                            mainAxisSpacing: 4,
                           ),
 
                       itemBuilder: (context, index) {
-                        return _buildNumberBubble(index, small: true);
+                        return _buildNumberBubble(index, soalList, small: true);
                       },
                     ),
                   ),
@@ -771,6 +807,55 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                             soal.imageFile!.isNotEmpty)
                           const SizedBox(height: 16),
 
+                        // Warning audio
+                        if (_isListeningPart(partId) &&
+                            soal.audioFile != null &&
+                            soal.audioFile!.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: const Text(
+                              'Dengarkan audio dengan saksama. Audio hanya dapat diputar satu kali dan tidak dapat diulang.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+
+                        if ((partId == 3 || partId == 4) &&
+                            soal.audioFile != null &&
+                            soal.audioFile!.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.blue.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.record_voice_over,
+                                  color: Colors.blue,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Audio ini digunakan untuk menjawab $jumlahSoalAudio pertanyaan yang saling terkait.',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                         // Audio (Part 1-4)
                         if (_isListeningPart(partId) &&
                             soal.audioFile != null &&
@@ -800,7 +885,9 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                                           ),
                                         )
                                       : Icon(
-                                          _isPlaying
+                                          _playedAudios.contains(soal.audioFile)
+                                              ? Icons.check_circle
+                                              : _isPlaying
                                               ? Icons.pause_circle_filled
                                               : Icons.play_circle_filled,
                                           color: const Color(0xFF2563EB),
@@ -1025,14 +1112,18 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
     );
   }
 
-  Widget _buildNumberBubble(int i, {bool small = false}) {
+  Widget _buildNumberBubble(
+    int i,
+    List<LatihanSoalModel> soalList, {
+    bool small = false,
+  }) {
     final isAnswered = _userAnswers.containsKey(i);
     final isCurrent = i == _currentIndex;
     final size = small ? 42.0 : 44.0;
     final fontSize = small ? 13.0 : 14.0;
 
     return GestureDetector(
-      onTap: () => _goToQuestion(i),
+      onTap: () => _goToQuestion(i, soalList),
       child: Container(
         width: size,
         height: size,
@@ -1043,7 +1134,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
               ? const Color(0xFF2563EB)
               : isAnswered
               ? Colors.blue[100]
-              : Colors.white,
+              : Colors.grey.shade200,
           border: Border.all(
             color: isCurrent ? const Color(0xFF2563EB) : Colors.grey[300]!,
           ),
