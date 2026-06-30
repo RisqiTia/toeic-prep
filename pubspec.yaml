@@ -36,7 +36,7 @@ dependencies:
   percent_indicator: ^4.2.3
   image_picker: ^1.1.2
   google_fonts: ^6.2.1
-
+  shimmer: ^3.0.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -70,6 +70,14 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/logo/4.png
+    - assets/logo/1.png
+    - assets/logo/2.png
+    - assets/logo/3.png
+    - assets/on_boarding/foto_on_boarding1.png
+    - assets/on_boarding/foto_on_boarding2.png
+    - assets/on_boarding/foto_on_boarding3.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

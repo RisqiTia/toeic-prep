@@ -53,7 +53,7 @@ class _BerandaScreenState extends State<BerandaScreen> {
       backgroundColor: Colors.white,
       body: _buildBody(),
       bottomNavigationBar: Container(
-        color: Colors.grey.shade100,
+        // color: Colors.grey.shade100,
         child: CustomBottomNavBar(
           currentIndex: _currentIndex,
           onTap: (index) {
