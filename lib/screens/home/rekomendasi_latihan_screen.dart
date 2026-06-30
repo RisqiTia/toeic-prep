@@ -13,14 +13,14 @@ import 'package:toeic_prep/screens/home/hasil_latihan_screen.dart';
 class RekomendasiLatihanScreen extends StatefulWidget {
   final int userId;
   final List<WeakPartInfo> weakParts; // part-part yang direkomendasikan
-  final int soalPerPart; // jumlah soal per part (default 20)
+  final Map<int, int> soalPerPartMap; // jumlah soal per part_id (total 30)
   final int percobaan; // percobaan ke-berapa (1-based, diteruskan ke hasil)
 
   const RekomendasiLatihanScreen({
     super.key,
     required this.userId,
     required this.weakParts,
-    this.soalPerPart = 20,
+    required this.soalPerPartMap,
     this.percobaan = 1,
   });
 
@@ -77,12 +77,18 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
 
   Future<List<LatihanSoalModel>> _fetchSoal() async {
     final partIds = widget.weakParts.map((p) => p.partId).join(',');
+
+    // Bangun parameter limits: "3:15,4:15" dari soalPerPartMap
+    final limitsParam = widget.soalPerPartMap.entries
+        .map((e) => '${e.key}:${e.value}')
+        .join(',');
+
     final url = Uri.parse(
       '${ApiService.apiBaseUrl}/recommendation.php'
       '?action=get_questions'
       '&user_id=${widget.userId}'
       '&part_ids=$partIds'
-      '&limit=${widget.soalPerPart}',
+      '&limits=$limitsParam',
     );
 
     try {
@@ -132,8 +138,8 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
           benar: benar,
           userId: widget.userId,
           weakParts: widget.weakParts,
-          soalPerPart: widget.soalPerPart,
-          percobaan: widget.percobaan, // teruskan percobaan ke-N
+          soalPerPartMap: widget.soalPerPartMap,
+          percobaan: widget.percobaan,
         ),
       ),
     );

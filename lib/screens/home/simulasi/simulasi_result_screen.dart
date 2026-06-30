@@ -65,59 +65,101 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
   bool _levelUp = false;
   bool _isUpdating = true;
 
-  // Part terlemah yang akan dijadikan rekomendasi
+  // Part yang direkomendasikan (accuracy < 60%)
   late List<WeakPartInfo> _recommendedParts;
 
-  // Pesan rekomendasi, misal "Skor Anda pada Part 3 dan Part 4 lemah..."
+  // Distribusi jumlah soal per part (total 30)
+  late Map<int, int> _soalPerPartMap;
+
+  // Pesan rekomendasi
   String _rekomendasiPesan = '';
+
+  // Pisahkan weakParts per section untuk ditampilkan di card
+  late List<WeakPartInfo> _listeningParts; // part 1-4
+  late List<WeakPartInfo> _readingParts;   // part 5-7
 
   @override
   void initState() {
     super.initState();
     _feedbackText = widget.motivation;
+    _separatePartsBySection();
     _buildRekomendasi();
     _processResult();
   }
 
-  /// Tentukan part mana saja yang direkomendasikan & buat pesan
+  /// Pisahkan weakParts menjadi listening (1-4) dan reading (5-7)
+  void _separatePartsBySection() {
+    _listeningParts = widget.weakParts
+        .where((p) => p.partId >= 1 && p.partId <= 4)
+        .toList();
+    _readingParts = widget.weakParts
+        .where((p) => p.partId >= 5 && p.partId <= 7)
+        .toList();
+  }
+
+  /// Tentukan part mana saja yang direkomendasikan (accuracy < 60%)
+  /// dan distribusikan 30 soal secara proporsional ke part paling lemah
   void _buildRekomendasi() {
-    final score = widget.totalScore;
+    const double threshold = 60.0;
+    const int totalSoal = 30;
 
-    // Jumlah part yang direkomendasikan berdasarkan skor
-    int jumlahPart;
-    if (score < 500 && score > 400) {
-      jumlahPart = 2; // 2 part paling lemah
-    } else if (score <= 400) {
-      jumlahPart = 3; // 3 part paling lemah
-    } else {
-      jumlahPart = 0; // skor >= 500, tidak perlu rekomendasi
-    }
+    // Filter hanya part dengan accuracy < 60%
+    final weakList = widget.weakParts
+        .where((p) => p.accuracy < threshold)
+        .toList();
 
-    if (jumlahPart == 0 || widget.weakParts.isEmpty) {
+    if (weakList.isEmpty) {
       _recommendedParts = [];
+      _soalPerPartMap = {};
       _rekomendasiPesan = '';
       return;
     }
 
-    // Ambil N part terlemah dari list yang sudah diurutkan backend
-    _recommendedParts = widget.weakParts.take(jumlahPart).toList();
+    _recommendedParts = weakList;
 
-    // Buat pesan: "Skor Anda pada Part 3 dan Part 4 lemah, ..."
-    final namaPartList = _recommendedParts.map((p) => p.partName).toList();
+    // Distribusi soal: part paling lemah dapat lebih banyak soal
+    // Gunakan "inverse accuracy" sebagai bobot
+    // Semakin rendah accuracy, semakin besar bobot
+    final Map<int, double> bobotMap = {};
+    double totalBobot = 0;
+    for (final p in weakList) {
+      // Bobot = (100 - accuracy), min 1
+      final bobot = (100.0 - p.accuracy).clamp(1.0, 100.0);
+      bobotMap[p.partId] = bobot;
+      totalBobot += bobot;
+    }
+
+    // Hitung jumlah soal per part (floor dulu, sisanya ke part terlemah)
+    _soalPerPartMap = {};
+    int sisaSoal = totalSoal;
+    final sortedByAccuracy = List<WeakPartInfo>.from(weakList)
+      ..sort((a, b) => a.accuracy.compareTo(b.accuracy));
+
+    for (int i = 0; i < sortedByAccuracy.length; i++) {
+      final p = sortedByAccuracy[i];
+      if (i == sortedByAccuracy.length - 1) {
+        // Part terakhir (terlemah) dapat sisa soal
+        _soalPerPartMap[p.partId] = sisaSoal;
+      } else {
+        final porsi = ((bobotMap[p.partId]! / totalBobot) * totalSoal).floor();
+        final jumlah = porsi.clamp(1, sisaSoal - (sortedByAccuracy.length - 1 - i));
+        _soalPerPartMap[p.partId] = jumlah;
+        sisaSoal -= jumlah;
+      }
+    }
+
+    // Buat pesan rekomendasi
+    final namaPartList = weakList.map((p) => p.partName).toList();
     String namaGabung;
     if (namaPartList.length == 1) {
       namaGabung = namaPartList.first;
     } else {
-      final semuaKecualiTerakhir = namaPartList.sublist(
-        0,
-        namaPartList.length - 1,
-      );
-      namaGabung =
-          '${semuaKecualiTerakhir.join(', ')} dan ${namaPartList.last}';
+      final semuaKecualiTerakhir = namaPartList.sublist(0, namaPartList.length - 1);
+      namaGabung = '${semuaKecualiTerakhir.join(', ')} dan ${namaPartList.last}';
     }
 
     _rekomendasiPesan =
-        'Skor Anda pada $namaGabung lemah, silahkan kerjakan rekomendasi latihan.';
+        'Persentase benar Anda pada $namaGabung masih di bawah 60%, silahkan kerjakan rekomendasi latihan.';
   }
 
   Future<void> _processResult() async {
@@ -199,10 +241,17 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
         builder: (_) => RekomendasiLatihanScreen(
           userId: widget.userId,
           weakParts: _recommendedParts,
-          soalPerPart: 20,
+          soalPerPartMap: _soalPerPartMap,
         ),
       ),
     );
+  }
+
+  /// Warna indikator akurasi per part
+  Color _getAccuracyColor(double accuracy) {
+    if (accuracy >= 80) return Colors.green[600]!;
+    if (accuracy >= 60) return Colors.orange[600]!;
+    return Colors.red[600]!;
   }
 
   @override
@@ -224,8 +273,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
     }
 
     final displayLevel = _levelUp ? _newLevel : _currentLevel;
-    final bool butuhRekomendasi =
-        widget.totalScore < 500 && _recommendedParts.isNotEmpty;
+    final bool butuhRekomendasi = _recommendedParts.isNotEmpty;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -342,29 +390,26 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
 
               const SizedBox(height: 12),
 
-              // ── Card Listening & Reading ─────────────────
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildScoreCard(
-                      icon: Icons.headphones_outlined,
-                      iconColor: Colors.blue[400]!,
-                      label: 'Listening',
-                      score: widget.listeningScore,
-                      maxScore: 495,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildScoreCard(
-                      icon: Icons.menu_book_outlined,
-                      iconColor: Colors.teal[400]!,
-                      label: 'Reading',
-                      score: widget.readingScore,
-                      maxScore: 495,
-                    ),
-                  ),
-                ],
+              // ── Card Listening ───────────────────────────
+              _buildScoreCardWithParts(
+                icon: Icons.headphones_outlined,
+                iconColor: Colors.blue[400]!,
+                label: 'Listening',
+                score: widget.listeningScore,
+                maxScore: 495,
+                partList: _listeningParts,
+              ),
+
+              const SizedBox(height: 12),
+
+              // ── Card Reading ─────────────────────────────
+              _buildScoreCardWithParts(
+                icon: Icons.menu_book_outlined,
+                iconColor: Colors.teal[400]!,
+                label: 'Reading',
+                score: widget.readingScore,
+                maxScore: 495,
+                partList: _readingParts,
               ),
 
               const SizedBox(height: 12),
@@ -395,7 +440,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                 ),
               ),
 
-              // ── Pesan rekomendasi (hanya jika skor < 500) ─
+              // ── Pesan rekomendasi ─────────────────────────
               if (butuhRekomendasi) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -428,7 +473,6 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Navigasi ke halaman periksa jawaban
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -461,7 +505,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
 
               const SizedBox(height: 12),
 
-              // ── Tombol Rekomendasi Latihan (jika skor < 500) ──
+              // ── Tombol Rekomendasi Latihan ────────────────
               if (butuhRekomendasi)
                 SizedBox(
                   width: double.infinity,
@@ -505,12 +549,14 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
     );
   }
 
-  Widget _buildScoreCard({
+  /// Card Listening/Reading dengan breakdown persentase per part di bawahnya
+  Widget _buildScoreCardWithParts({
     required IconData icon,
     required Color iconColor,
     required String label,
     required int score,
     required int maxScore,
+    required List<WeakPartInfo> partList,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -528,26 +574,120 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: iconColor, size: 20),
-          const SizedBox(height: 8),
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          // Baris atas: ikon + label + skor
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(icon, color: iconColor, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+              ),
+              const Spacer(),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$score',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '/$maxScore',
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Breakdown per part (jika ada data)
+          if (partList.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            ...partList.map((p) => _buildPartAccuracyRow(p)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Baris persentase benar per part dengan progress bar mini
+  Widget _buildPartAccuracyRow(WeakPartInfo p) {
+    final accuracyInt = p.accuracy.round();
+    final color = _getAccuracyColor(p.accuracy);
+    final isWeak = p.accuracy < 60;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Nama part
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(
+                      p.partName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (isWeak) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.red[200]!),
+                        ),
+                        child: Text(
+                          'Lemah',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.red[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              // Persentase
+              Text(
+                '$accuracyInt%',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '$score',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                TextSpan(
-                  text: '/$maxScore',
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-              ],
+          // Progress bar mini
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: p.accuracy / 100,
+              minHeight: 5,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
         ],

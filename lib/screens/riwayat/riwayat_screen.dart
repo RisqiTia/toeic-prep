@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:toeic_prep/services/user_session.dart';
 import 'package:toeic_prep/services/api_service.dart';
+import 'package:toeic_prep/widgets/skeleton_loader.dart';
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
 
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const RiwayatScreenSkeleton()
                   : _error != null
                   ? _buildError()
                   : RefreshIndicator(

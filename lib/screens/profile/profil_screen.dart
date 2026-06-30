@@ -5,6 +5,7 @@ import '../../services/api_service.dart';
 import '../../services/user_session.dart';
 import '../auth/login_screen.dart';
 import 'change_password.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class ProfilScreen extends StatefulWidget {
   final String userName;
@@ -399,15 +400,8 @@ class _ProfilScreenState extends State<ProfilScreen> {
                             ),
                             child: ClipOval(
                               child: _isUploadingPhoto
-                                  ? const Center(
-                                      child: SizedBox(
-                                        width: 28,
-                                        height: 28,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: Color(0xFF2563EB),
-                                        ),
-                                      ),
+                                  ? ShimmerWrapper(
+                                      child: SkeletonCircle(size: 90),
                                     )
                                   : _photoUrl.isNotEmpty
                                   ? Image.network(
@@ -503,11 +497,11 @@ class _ProfilScreenState extends State<ProfilScreen> {
                         _isSavingName
                             ? const Padding(
                                 padding: EdgeInsets.only(right: 14),
-                                child: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                                child: ShimmerWrapper(
+                                  child: SkeletonBox(
+                                    width: 18,
+                                    height: 18,
+                                    radius: 4,
                                   ),
                                 ),
                               )

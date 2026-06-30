@@ -8,7 +8,9 @@
  *   action=get_questions
  *   part_ids=3,4          (comma-separated part id yang lemah)
  *   user_id=1
- *   limit=20              (jumlah soal per part, default 20)
+ *   limits=3:15,4:15      (format part_id:jumlah_soal, comma-separated)
+ *                          Jika tidak ada, fallback ke limit (default 10 per part)
+ *   limit=10              (jumlah soal per part jika limits tidak diberikan)
  */
 
 require_once 'config.php';
@@ -18,7 +20,8 @@ header('Content-Type: application/json');
 $action   = $_GET['action']   ?? '';
 $user_id  = (int)($_GET['user_id'] ?? 0);
 $partIds  = $_GET['part_ids'] ?? '';
-$limit    = (int)($_GET['limit'] ?? 20);
+$limitsRaw = $_GET['limits'] ?? ''; // format: "3:15,4:15"
+$limit    = (int)($_GET['limit'] ?? 10);
 
 // ─── Ambil soal rekomendasi (tidak simpan ke DB) ──────────────────────────────
 if ($action === 'get_questions' && $user_id && $partIds) {
@@ -33,6 +36,21 @@ if ($action === 'get_questions' && $user_id && $partIds) {
         exit;
     }
 
+    // Parse limits per-part jika diberikan: "3:15,4:15" → [3=>15, 4=>15]
+    $limitsMap = [];
+    if (!empty($limitsRaw)) {
+        foreach (explode(',', $limitsRaw) as $entry) {
+            $parts = explode(':', $entry);
+            if (count($parts) === 2) {
+                $pid = (int)$parts[0];
+                $lim = (int)$parts[1];
+                if ($pid >= 1 && $pid <= 7 && $lim > 0) {
+                    $limitsMap[$pid] = $lim;
+                }
+            }
+        }
+    }
+
     // Ambil skill_level user
     $stmt = $pdo->prepare("SELECT skill_level FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
@@ -42,6 +60,8 @@ if ($action === 'get_questions' && $user_id && $partIds) {
     $result = [];
 
     foreach ($validIds as $pid) {
+        // Tentukan limit soal untuk part ini
+        $partLimit = $limitsMap[$pid] ?? $limit;
 
         // Ambil soal sesuai difficulty_level user
         $stmt = $pdo->prepare("
@@ -77,7 +97,7 @@ if ($action === 'get_questions' && $user_id && $partIds) {
         } else {
             // Part 1, 2, 5 — shuffle dan ambil langsung
             shuffle($rows);
-            $selected = array_slice($rows, 0, $limit);
+            $selected = array_slice($rows, 0, $partLimit);
             $result[] = [
                 'part_id'    => $pid,
                 'part_name'  => $rows[0]['part_name'] ?? "Part $pid",
@@ -88,7 +108,7 @@ if ($action === 'get_questions' && $user_id && $partIds) {
             continue;
         }
 
-        // Ambil grup secara acak sampai terpenuhi $limit soal
+        // Ambil grup secara acak sampai terpenuhi $partLimit soal
         $keys     = array_keys($groups);
         shuffle($keys);
         $selected = [];
@@ -96,9 +116,9 @@ if ($action === 'get_questions' && $user_id && $partIds) {
             foreach ($groups[$key] as $item) {
                 $selected[] = $item;
             }
-            if (count($selected) >= $limit) break;
+            if (count($selected) >= $partLimit) break;
         }
-        $selected = array_slice($selected, 0, $limit);
+        $selected = array_slice($selected, 0, $partLimit);
 
         $partName = !empty($selected) ? $selected[0]['part_name'] : "Part $pid";
         $partType = !empty($selected) ? $selected[0]['part_type'] : '';

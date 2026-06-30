@@ -10,7 +10,7 @@ class HasilLatihanScreen extends StatefulWidget {
   final int benar;
   final int userId;
   final List<WeakPartInfo> weakParts;
-  final int soalPerPart;
+  final Map<int, int> soalPerPartMap;
   final int percobaan;
 
   const HasilLatihanScreen({
@@ -20,7 +20,7 @@ class HasilLatihanScreen extends StatefulWidget {
     required this.benar,
     required this.userId,
     required this.weakParts,
-    required this.soalPerPart,
+    required this.soalPerPartMap,
     this.percobaan = 1,
   });
 
@@ -103,7 +103,7 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
         builder: (_) => RekomendasiLatihanScreen(
           userId: widget.userId,
           weakParts: widget.weakParts,
-          soalPerPart: widget.soalPerPart,
+          soalPerPartMap: widget.soalPerPartMap,
           percobaan: widget.percobaan + 1,
         ),
       ),
