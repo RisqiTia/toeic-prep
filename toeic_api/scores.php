@@ -117,8 +117,6 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $weakPartsOrdered = array_values($partStats);
 
         // ── HITUNG SKOR DENGAN TABEL KONVERSI ──────────────────
-        // Lookup scaled_score dari tabel toeic_score_conversion
-        // berdasarkan jumlah jawaban benar per section (raw_score)
         $stmtConvL = $pdo->prepare("
             SELECT scaled_score
             FROM toeic_score_conversion
@@ -140,7 +138,7 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $totalScore = $listeningScore + $readingScore;
         // ────────────────────────────────────────────────────────
 
-        // Kategori skor keseluruhan
+        // Kategori skor keseluruhan (untuk memilih pesan motivasi)
         if ($totalScore < 500) {
             $scoreCategory = 'rendah';
         } elseif ($totalScore < 700) {
@@ -149,8 +147,11 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $scoreCategory = 'tinggi';
         }
 
-        $listeningLevel = $listeningScore < 167 ? 'lemah' : ($listeningScore <= 334 ? 'cukup' : 'kuat');
-        $readingLevel   = $readingScore   < 165 ? 'lemah' : ($readingScore   <= 330 ? 'cukup' : 'kuat');
+        // Level per section (untuk memilih pesan motivasi)
+        // Listening: lemah < 275 | cukup 275–400 | kuat > 400
+        // Reading  : lemah < 275 | cukup 275–385 | kuat > 385
+        $listeningLevel = $listeningScore < 275 ? 'lemah' : ($listeningScore <= 400 ? 'cukup' : 'kuat');
+        $readingLevel   = $readingScore   < 275 ? 'lemah' : ($readingScore   <= 385 ? 'cukup' : 'kuat');
 
         // Durasi
         $stmtDurasi = $pdo->prepare("
@@ -181,8 +182,6 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         // Motivasi
         $motivation = getMotivation($pdo, $scoreCategory, $listeningLevel, $readingLevel);
 
-        // Kirim semua part urut terlemah agar Flutter bisa memilih
-        // sesuai jumlah yang dibutuhkan (2 atau 3 part)
         $weakParts = array_map(fn($p) => [
             'part_id'   => $p['part_id'],
             'part_name' => $p['part_name'],

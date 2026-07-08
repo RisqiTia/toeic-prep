@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:toeic_prep/screens/home/simulasi/simulasi_result_screen.dart'
-    show WeakPartInfo;
+    show WeakSection;
 import 'package:toeic_prep/screens/home/rekomendasi_latihan_screen.dart';
 
 class HasilLatihanScreen extends StatefulWidget {
@@ -9,8 +9,8 @@ class HasilLatihanScreen extends StatefulWidget {
   final int totalSoal;
   final int benar;
   final int userId;
-  final List<WeakPartInfo> weakParts;
-  final Map<int, int> soalPerPartMap;
+  final WeakSection weakSection;
+  final int totalSoalRekomendasi;
   final int percobaan;
 
   const HasilLatihanScreen({
@@ -19,8 +19,8 @@ class HasilLatihanScreen extends StatefulWidget {
     required this.totalSoal,
     required this.benar,
     required this.userId,
-    required this.weakParts,
-    required this.soalPerPartMap,
+    required this.weakSection,
+    this.totalSoalRekomendasi = 30,
     this.percobaan = 1,
   });
 
@@ -39,15 +39,14 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
 
   bool _showOverlay = false;
 
-  static const int _threshold = 65;
+  static const int _threshold = 80;
   static const int _maxPercobaan = 3;
-  static const int _delaySebelumPopup = 5; // detik
+  static const int _delaySebelumPopup = 5;
 
   @override
   void initState() {
     super.initState();
 
-    // Animasi lingkaran skor
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -58,7 +57,6 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
 
-    // Animasi overlay pop-up
     _overlayController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
@@ -71,7 +69,6 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
       CurvedAnimation(parent: _overlayController, curve: Curves.easeOutBack),
     );
 
-    // Jika percobaan ke-3 dan belum lulus → tampilkan overlay setelah delay
     if (widget.percobaan >= _maxPercobaan && widget.skorPersen < _threshold) {
       Future.delayed(const Duration(seconds: _delaySebelumPopup), () {
         if (mounted) {
@@ -92,9 +89,7 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
   bool get _lulus => widget.skorPersen >= _threshold;
   bool get _sudahMaksPercobaan => widget.percobaan >= _maxPercobaan && !_lulus;
 
-  void _cobaUjiUlang() {
-    Navigator.popUntil(context, (route) => route.isFirst);
-  }
+  void _cobaUjiUlang() => Navigator.popUntil(context, (r) => r.isFirst);
 
   void _kerjakanLagi() {
     Navigator.pushReplacement(
@@ -102,8 +97,8 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
       MaterialPageRoute(
         builder: (_) => RekomendasiLatihanScreen(
           userId: widget.userId,
-          weakParts: widget.weakParts,
-          soalPerPartMap: widget.soalPerPartMap,
+          weakSection: widget.weakSection,
+          totalSoal: widget.totalSoalRekomendasi,
           percobaan: widget.percobaan + 1,
         ),
       ),
@@ -131,7 +126,6 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
       ),
       body: Stack(
         children: [
-          // ── Halaman utama skor (selalu terlihat) ──────────────────────────
           Column(
             children: [
               Expanded(
@@ -139,7 +133,6 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Lingkaran skor animasi
                       AnimatedBuilder(
                         animation: _progressAnim,
                         builder: (context, _) {
@@ -155,10 +148,7 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Text(
-                                    '👑',
-                                    style: TextStyle(fontSize: 36),
-                                  ),
+                                  const Text('👑', style: TextStyle(fontSize: 36)),
                                   const SizedBox(height: 4),
                                   Text(
                                     '${widget.skorPersen}',
@@ -193,7 +183,6 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                         style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                       ),
 
-                      // Badge percobaan (hanya jika belum maks)
                       if (!_lulus && !_sudahMaksPercobaan) ...[
                         const SizedBox(height: 8),
                         Text(
@@ -206,7 +195,6 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                         ),
                       ],
 
-                      // Teks menunggu pop-up (percobaan ke-3, sebelum overlay muncul)
                       if (_sudahMaksPercobaan && !_showOverlay) ...[
                         const SizedBox(height: 8),
                         Text(
@@ -223,7 +211,6 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                 ),
               ),
 
-              // Tombol bawah — disembunyikan jika percobaan ke-3 & belum lulus
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
                 child: Column(
@@ -256,7 +243,7 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
 
                     TextButton(
                       onPressed: () =>
-                          Navigator.popUntil(context, (route) => route.isFirst),
+                          Navigator.popUntil(context, (r) => r.isFirst),
                       child: Text(
                         'Kembali ke Beranda',
                         style: TextStyle(color: Colors.grey[500], fontSize: 14),
@@ -268,7 +255,7 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
             ],
           ),
 
-          // ── Overlay pop-up peringatan (3x gagal) — melayang di atas ────────
+          // Overlay 3x gagal
           if (_showOverlay)
             FadeTransition(
               opacity: _overlayFade,
@@ -294,7 +281,6 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Ikon
                           Container(
                             width: 72,
                             height: 72,
@@ -320,7 +306,7 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                           const SizedBox(height: 10),
                           Text(
                             'Kamu telah mencoba latihan sebanyak ${widget.percobaan} kali '
-                            'namun belum mencapai skor 65%. '
+                            'namun belum mencapai skor 80%. '
                             'Yuk, pelajari kembali materi dan latihan soal terlebih dahulu '
                             'sebelum mencoba simulasi lagi.',
                             style: TextStyle(
@@ -336,13 +322,12 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                             child: ElevatedButton(
                               onPressed: () => Navigator.popUntil(
                                 context,
-                                (route) => route.isFirst,
+                                (r) => r.isFirst,
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF2563EB),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -370,8 +355,6 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
     );
   }
 }
-
-// ─── Custom Painter lingkaran skor ───────────────────────────────────────────
 
 class _ScoreRingPainter extends CustomPainter {
   final double progress;
@@ -410,6 +393,5 @@ class _ScoreRingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ScoreRingPainter oldDelegate) =>
-      oldDelegate.progress != progress;
+  bool shouldRepaint(_ScoreRingPainter old) => old.progress != progress;
 }
