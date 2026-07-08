@@ -12,13 +12,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey         = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _passController  = TextEditingController();
+  final _passController = TextEditingController();
 
-  bool _obscurePass  = true;
-  bool _rememberMe   = false;
-  bool _isLoading    = false;
+  bool _obscurePass = true;
+  bool _rememberMe = false;
+  bool _isLoading = false;
   String? _errorMessage;
 
   @override
@@ -31,9 +31,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final saved = await UserSession.getSavedCredentials();
     if (saved != null) {
       setState(() {
-        _emailController.text = saved['email']    ?? '';
-        _passController.text  = saved['password'] ?? '';
-        _rememberMe           = true;
+        _emailController.text = saved['email'] ?? '';
+        _passController.text = saved['password'] ?? '';
+        _rememberMe = true;
       });
     }
   }
@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final result = await ApiService.login(
-      email   : _emailController.text.trim(),
+      email: _emailController.text.trim(),
       password: _passController.text,
     );
 
@@ -64,14 +64,19 @@ class _LoginScreenState extends State<LoginScreen> {
       // Hapus sesi lama dulu sebelum simpan sesi baru
       await UserSession.clear();
 
+      print(result);
+      print(user);
+      print(user['id']);
+      print(user['id'].runtimeType);
+
       // Simpan sesi user termasuk foto_profil
       await UserSession.save(
-        id        : user['id'],
-        name      : user['name'],
-        email     : user['email'],
+        id: int.parse(user['id'].toString()),
+        name: user['name'],
+        email: user['email'],
         skillLevel: user['skill_level'] ?? 'beginner',
         rememberMe: _rememberMe,
-        fotoProfil: user['foto_profil'] ?? '', // ← tambahan
+        fotoProfil: user['foto_profil'] ?? '',
       );
 
       // Simpan atau hapus kredensial berdasarkan checkbox Ingat Saya
@@ -89,17 +94,19 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => BerandaScreen(
-            userId    : user['id'],
-            userName  : user['name'],
-            userEmail : user['email'],
+            userId: int.parse(user['id'].toString()),
+            userName: user['name'],
+            userEmail: user['email'],
             skillLevel: user['skill_level'] ?? 'beginner',
-            userPhoto : user['foto_profil'] ?? '', // ← tambahan
+            userPhoto: user['foto_profil'] ?? '', // ← tambahan
           ),
         ),
         (_) => false,
       );
     } else {
-      setState(() => _errorMessage = result['message'] ?? 'Email atau password salah');
+      setState(
+        () => _errorMessage = result['message'] ?? 'Email atau password salah',
+      );
     }
   }
 
@@ -130,15 +137,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         'TOEIC Prep',
                         style: TextStyle(
-                          fontSize  : 28,
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color     : Color(0xFF1A1A2E),
+                          color: Color(0xFF1A1A2E),
                         ),
                       ),
                       SizedBox(height: 6),
                       Text(
                         'Persiapan TOEIC Internasional',
-                        style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
                       ),
                     ],
                   ),
@@ -150,16 +160,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 _FieldLabel(text: 'Email'),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller   : _emailController,
-                  keyboardType : TextInputType.emailAddress,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1A1A2E),
+                  ),
                   validator: (v) {
                     if (v!.trim().isEmpty) return 'Email tidak boleh kosong';
                     if (!v.contains('@')) return 'Format email tidak valid';
                     return null;
                   },
                   decoration: _inputDecoration(
-                    hint      : 'contoh@email.com',
+                    hint: 'contoh@email.com',
                     prefixIcon: Icons.email_outlined,
                   ),
                 ),
@@ -170,12 +183,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 _FieldLabel(text: 'Kata Sandi'),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller : _passController,
+                  controller: _passController,
                   obscureText: _obscurePass,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
-                  validator  : (v) => v!.isEmpty ? 'Kata sandi tidak boleh kosong' : null,
-                  decoration : _inputDecoration(
-                    hint      : '••••••••',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1A1A2E),
+                  ),
+                  validator: (v) =>
+                      v!.isEmpty ? 'Kata sandi tidak boleh kosong' : null,
+                  decoration: _inputDecoration(
+                    hint: '••••••••',
                     prefixIcon: Icons.lock_outline,
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -183,9 +200,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined,
                         color: Colors.grey,
-                        size : 20,
+                        size: 20,
                       ),
-                      onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                      onPressed: () =>
+                          setState(() => _obscurePass = !_obscurePass),
                     ),
                   ),
                 ),
@@ -196,16 +214,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   children: [
                     SizedBox(
-                      width : 20,
+                      width: 20,
                       height: 20,
-                      child : Checkbox(
-                        value         : _rememberMe,
-                        onChanged     : (v) => setState(() => _rememberMe = v ?? false),
-                        activeColor   : const Color(0xFF2563EB),
-                        shape         : RoundedRectangleBorder(
+                      child: Checkbox(
+                        value: _rememberMe,
+                        onChanged: (v) =>
+                            setState(() => _rememberMe = v ?? false),
+                        activeColor: const Color(0xFF2563EB),
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        side: const BorderSide(color: Color(0xFF9CA3AF), width: 1.5),
+                        side: const BorderSide(
+                          color: Color(0xFF9CA3AF),
+                          width: 1.5,
+                        ),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
@@ -214,7 +236,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       onTap: () => setState(() => _rememberMe = !_rememberMe),
                       child: const Text(
                         'Ingat Saya',
-                        style: TextStyle(fontSize: 14, color: Color(0xFF374151)),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF374151),
+                        ),
                       ),
                     ),
                   ],
@@ -224,9 +249,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // ── Tombol Masuk ──────────────────────────────
                 SizedBox(
-                  width : double.infinity,
+                  width: double.infinity,
                   height: 52,
-                  child : ElevatedButton(
+                  child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
@@ -238,16 +263,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: _isLoading
                         ? const SizedBox(
-                            width : 22,
+                            width: 22,
                             height: 22,
-                            child : CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2.5,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
                             ),
                           )
                         : const Text(
                             'Masuk',
                             style: TextStyle(
-                              fontSize  : 16,
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -269,9 +295,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           TextSpan(text: 'Belum Punya Akun? '),
                           TextSpan(
-                            text : 'Daftar',
+                            text: 'Daftar',
                             style: TextStyle(
-                              color     : Color(0xFF2563EB),
+                              color: Color(0xFF2563EB),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -289,36 +315,36 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   InputDecoration _inputDecoration({
-    required String   hint,
+    required String hint,
     required IconData prefixIcon,
-    Widget?           suffixIcon,
+    Widget? suffixIcon,
   }) {
     return InputDecoration(
-      hintText  : hint,
-      hintStyle : const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
       prefixIcon: Icon(prefixIcon, color: const Color(0xFF9CA3AF), size: 20),
       suffixIcon: suffixIcon,
-      filled    : true,
-      fillColor : const Color(0xFFF3F4F6),
+      filled: true,
+      fillColor: const Color(0xFFF3F4F6),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide  : BorderSide.none,
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide  : BorderSide.none,
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide  : const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide  : const BorderSide(color: Colors.red, width: 1.5),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide  : const BorderSide(color: Colors.red, width: 1.5),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
@@ -336,9 +362,9 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text,
       style: const TextStyle(
-        fontSize  : 14,
+        fontSize: 14,
         fontWeight: FontWeight.w500,
-        color     : Color(0xFF1A1A2E),
+        color: Color(0xFF1A1A2E),
       ),
     );
   }
@@ -351,15 +377,15 @@ class _ErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width  : double.infinity,
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color       : const Color(0xFFEF4444),
+        color: const Color(0xFFEF4444),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         message,
-        style    : const TextStyle(color: Colors.white, fontSize: 14),
+        style: const TextStyle(color: Colors.white, fontSize: 14),
         textAlign: TextAlign.center,
       ),
     );

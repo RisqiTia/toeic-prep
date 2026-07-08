@@ -3,16 +3,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // ── Ganti dengan IP komputer kamu jika test di HP fisik ──────
-  // Kalau pakai emulator Android  → 10.0.2.2
-  // Kalau pakai HP fisik          → cek IP WiFi kamu (misal: 192.168.1.5)
-  // Kalau pakai browser/web       → localhost
-  // static const String apiBaseUrl = 'http://10.0.2.2/toeic_prep_app/toeic_api';
-  // static const String mediaBaseUrl = 'http://10.0.2.2/toeic_dataset_generator';
-  static const String apiBaseUrl =
-      'http://192.168.1.13/toeic_prep_app/toeic_api';
-  static const String mediaBaseUrl =
-      'http://192.168.1.13/toeic_dataset_generator';
+  static const String apiBaseUrl = 'https://toeic-prep.my.id/api/';
+  static const String mediaBaseUrl = 'https://toeic-prep.my.id/asset_generator';
 
   // ─── AUTH ─────────────────────────────────────────────────────
 
@@ -29,10 +21,7 @@ class ApiService {
       );
       return jsonDecode(response.body);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Tidak bisa terhubung ke server. Pastikan XAMPP menyala.',
-      };
+      return {'status': 'error', 'message': 'Tidak dapat terhubung ke server.'};
     }
   }
 
@@ -48,10 +37,7 @@ class ApiService {
       );
       return jsonDecode(response.body);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Tidak bisa terhubung ke server. Pastikan XAMPP menyala.',
-      };
+      return {'status': 'error', 'message': 'Tidak dapat terhubung ke server.'};
     }
   }
 
