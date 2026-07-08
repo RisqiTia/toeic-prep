@@ -5,22 +5,22 @@ import 'package:http/http.dart' as http;
 import 'package:toeic_prep/models/latihan_soal_model.dart';
 import 'package:toeic_prep/services/api_service.dart';
 import 'package:toeic_prep/screens/home/simulasi/simulasi_result_screen.dart'
-    show WeakPartInfo;
+    show WeakSection;
 import 'package:toeic_prep/screens/home/hasil_latihan_screen.dart';
 
 /// Layar mengerjakan soal rekomendasi latihan.
-/// Soal diambil dari recommendation.php (tidak disimpan ke DB).
+/// Soal diambil dari recommendation.php berdasarkan section yang lemah.
 class RekomendasiLatihanScreen extends StatefulWidget {
   final int userId;
-  final List<WeakPartInfo> weakParts; // part-part yang direkomendasikan
-  final Map<int, int> soalPerPartMap; // jumlah soal per part_id (total 30)
-  final int percobaan; // percobaan ke-berapa (1-based, diteruskan ke hasil)
+  final WeakSection weakSection; // listening / reading / keduanya
+  final int totalSoal;           // total 30 soal
+  final int percobaan;
 
   const RekomendasiLatihanScreen({
     super.key,
     required this.userId,
-    required this.weakParts,
-    required this.soalPerPartMap,
+    required this.weakSection,
+    this.totalSoal = 30,
     this.percobaan = 1,
   });
 
@@ -29,7 +29,8 @@ class RekomendasiLatihanScreen extends StatefulWidget {
       _RekomendasiLatihanScreenState();
 }
 
-class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
+class _RekomendasiLatihanScreenState
+    extends State<RekomendasiLatihanScreen> {
   late Future<List<LatihanSoalModel>> _soalFuture;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -73,32 +74,55 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
     super.dispose();
   }
 
-  // ─── Fetch soal rekomendasi dari recommendation.php ──────────────────────
+  // ─── Fetch soal dari recommendation.php ──────────────────────────────────
 
   Future<List<LatihanSoalModel>> _fetchSoal() async {
-    final partIds = widget.weakParts.map((p) => p.partId).join(',');
-
-    // Bangun parameter limits: "3:15,4:15" dari soalPerPartMap
-    final limitsParam = widget.soalPerPartMap.entries
-        .map((e) => '${e.key}:${e.value}')
-        .join(',');
+    // Tentukan section string untuk dikirim ke PHP
+    String sectionParam;
+    switch (widget.weakSection) {
+      case WeakSection.listening:
+        sectionParam = 'listening';
+        break;
+      case WeakSection.reading:
+        sectionParam = 'reading';
+        break;
+      case WeakSection.keduanya:
+        sectionParam = 'both';
+        break;
+    }
 
     final url = Uri.parse(
       '${ApiService.apiBaseUrl}/recommendation.php'
       '?action=get_questions'
       '&user_id=${widget.userId}'
-      '&part_ids=$partIds'
-      '&limits=$limitsParam',
+      '&section=$sectionParam'
+      '&limit=${widget.totalSoal}',
     );
 
     try {
       final response = await http.get(url);
-      final data = jsonDecode(response.body);
+
+      // ── DEBUG: print raw response agar bisa didiagnosa di logcat ──
+      debugPrint('=== recommendation.php RAW RESPONSE ===');
+      debugPrint('Status code : ${response.statusCode}');
+      debugPrint('Body        : ${response.body}');
+      debugPrint('=======================================');
+
+      // Cari awal JSON yang valid (skip karakter HTML di depan jika ada)
+      final body = response.body.trim();
+      final jsonStart = body.indexOf('{');
+      if (jsonStart < 0) {
+        throw Exception(
+          'Response bukan JSON. Server mengirim:\n${body.substring(0, body.length.clamp(0, 300))}',
+        );
+      }
+      final cleanBody = jsonStart > 0 ? body.substring(jsonStart) : body;
+
+      final data = jsonDecode(cleanBody);
 
       if (data['status'] == 'success') {
         final List parts = data['parts'] as List;
         final List<LatihanSoalModel> allSoal = [];
-
         for (final part in parts) {
           final List questions = part['questions'] as List;
           allSoal.addAll(questions.map((e) => LatihanSoalModel.fromJson(e)));
@@ -107,12 +131,14 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
       } else {
         throw Exception(data['message'] ?? 'Gagal mengambil soal rekomendasi');
       }
+    } on FormatException catch (e) {
+      throw Exception('Response bukan JSON valid: $e');
     } catch (e) {
       throw Exception('Gagal terhubung ke server: $e');
     }
   }
 
-  // ─── Submit jawaban (hitung lokal, tidak ke DB) ───────────────────────────
+  // ─── Submit (hitung lokal) ────────────────────────────────────────────────
 
   void _submit(List<LatihanSoalModel> soalList) {
     if (_isSubmitting) return;
@@ -123,7 +149,6 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
       if ((_userAnswers[i] ?? '') == soalList[i].correctAnswer) benar++;
     }
 
-    // Skor dalam persen (0–100)
     final int skorPersen = soalList.isNotEmpty
         ? ((benar / soalList.length) * 100).round()
         : 0;
@@ -137,8 +162,8 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
           totalSoal: soalList.length,
           benar: benar,
           userId: widget.userId,
-          weakParts: widget.weakParts,
-          soalPerPartMap: widget.soalPerPartMap,
+          weakSection: widget.weakSection,
+          totalSoalRekomendasi: widget.totalSoal,
           percobaan: widget.percobaan,
         ),
       ),
@@ -236,7 +261,7 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
     );
   }
 
-  // ─── Audio ───────────────────────────────────────────────────────────────
+  // ─── Audio ────────────────────────────────────────────────────────────────
 
   Future<void> _toggleAudio(String audioFile) async {
     if (_currentAudioFile != audioFile) {
@@ -330,26 +355,18 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
 
   String _getPartLabel(int partId) {
     switch (partId) {
-      case 1:
-        return 'Photographs';
-      case 2:
-        return 'Question-Response';
-      case 3:
-        return 'Conversations';
-      case 4:
-        return 'Talks';
-      case 5:
-        return 'Incomplete Sentences';
-      case 6:
-        return 'Text Completion';
-      case 7:
-        return 'Reading Comprehension';
-      default:
-        return 'Part $partId';
+      case 1: return 'Photographs';
+      case 2: return 'Question-Response';
+      case 3: return 'Conversations';
+      case 4: return 'Talks';
+      case 5: return 'Incomplete Sentences';
+      case 6: return 'Text Completion';
+      case 7: return 'Reading Comprehension';
+      default: return 'Part $partId';
     }
   }
 
-  // ─── Build ───────────────────────────────────────────────────────────────
+  // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -381,10 +398,14 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                 children: [
                   const Icon(Icons.error_outline, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
-                  Text('Error: ${snapshot.error}', textAlign: TextAlign.center),
+                  Text(
+                    'Error: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () => setState(() => _soalFuture = _fetchSoal()),
+                    onPressed: () =>
+                        setState(() => _soalFuture = _fetchSoal()),
                     child: const Text('Coba Lagi'),
                   ),
                 ],
@@ -411,7 +432,7 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
           return SafeArea(
             child: Column(
               children: [
-                // ── AppBar sederhana ─────────────────────
+                // ── AppBar ───────────────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -457,7 +478,7 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                   ),
                 ),
 
-                // ── Progress & nomor soal ─────────────────
+                // ── Progress ─────────────────────────────
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -522,7 +543,7 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                   ),
                 ),
 
-                // ── Grid nomor soal (collapsed) ───────────
+                // ── Grid nomor soal ───────────────────────
                 if (_showQuestionList)
                   Container(
                     constraints: const BoxConstraints(maxHeight: 200),
@@ -564,13 +585,12 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                               fit: BoxFit.cover,
                             ),
                           ),
-
                         if (_hasImagePart(partId) &&
                             soal.imageFile != null &&
                             soal.imageFile!.isNotEmpty)
                           const SizedBox(height: 16),
 
-                        // Audio player (Part 1-4)
+                        // Audio (Part 1–4)
                         if (_isListeningPart(partId) &&
                             soal.audioFile != null &&
                             soal.audioFile!.isNotEmpty)
@@ -623,9 +643,8 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                                             color: _isPlaying
                                                 ? const Color(0xFF2563EB)
                                                 : Colors.grey[400],
-                                            borderRadius: BorderRadius.circular(
-                                              2,
-                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(2),
                                           ),
                                         ),
                                       ),
@@ -635,13 +654,12 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                               ),
                             ),
                           ),
-
                         if (_isListeningPart(partId) &&
                             soal.audioFile != null &&
                             soal.audioFile!.isNotEmpty)
                           const SizedBox(height: 20),
 
-                        // Teks soal (Part 3-7)
+                        // Teks soal (Part 3–7)
                         if (!_hideOptionTextPart(partId) &&
                             soal.questionText.isNotEmpty)
                           Padding(
@@ -744,7 +762,8 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                    border:
+                        Border(top: BorderSide(color: Colors.grey[200]!)),
                   ),
                   child: Row(
                     children: [
@@ -825,7 +844,8 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
               ? Colors.blue[100]
               : Colors.white,
           border: Border.all(
-            color: isCurrent ? const Color(0xFF2563EB) : Colors.grey[300]!,
+            color:
+                isCurrent ? const Color(0xFF2563EB) : Colors.grey[300]!,
           ),
         ),
         child: Center(
@@ -846,7 +866,8 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Keluar Latihan?',
           style: TextStyle(fontWeight: FontWeight.bold),
@@ -871,7 +892,10 @@ class _RekomendasiLatihanScreenState extends State<RekomendasiLatihanScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Keluar',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

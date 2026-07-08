@@ -7,27 +7,8 @@ import 'package:toeic_prep/services/user_session.dart';
 import 'package:toeic_prep/services/api_service.dart';
 import 'package:toeic_prep/screens/home/rekomendasi_latihan_screen.dart';
 
-// ─── Model sederhana untuk info part yang lemah ─────────────────────────────
-class WeakPartInfo {
-  final int partId;
-  final String partName;
-  final String partType;
-  final double accuracy;
-
-  const WeakPartInfo({
-    required this.partId,
-    required this.partName,
-    required this.partType,
-    required this.accuracy,
-  });
-
-  factory WeakPartInfo.fromJson(Map<String, dynamic> json) => WeakPartInfo(
-    partId: json['part_id'] as int,
-    partName: json['part_name'] as String,
-    partType: json['part_type'] as String,
-    accuracy: (json['accuracy'] as num).toDouble(),
-  );
-}
+// ─── Enum section yang perlu rekomendasi ────────────────────────────────────
+enum WeakSection { listening, reading, keduanya }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 class SimulasiResultScreen extends StatefulWidget {
@@ -39,9 +20,6 @@ class SimulasiResultScreen extends StatefulWidget {
   final Map<int, String> userAnswers;
   final String motivation;
 
-  /// Daftar semua part diurutkan dari yang paling lemah (dari backend)
-  final List<WeakPartInfo> weakParts;
-
   const SimulasiResultScreen({
     super.key,
     required this.totalScore,
@@ -51,7 +29,6 @@ class SimulasiResultScreen extends StatefulWidget {
     required this.soalList,
     required this.userAnswers,
     required this.motivation,
-    required this.weakParts,
   });
 
   @override
@@ -65,109 +42,55 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
   bool _levelUp = false;
   bool _isUpdating = true;
 
-  // Part yang direkomendasikan (accuracy < 60%)
-  late List<WeakPartInfo> _recommendedParts;
-
-  // Distribusi jumlah soal per part (total 30)
-  late Map<int, int> _soalPerPartMap;
-
-  // Pesan rekomendasi
+  // Rekomendasi — section mana yang lemah
+  WeakSection? _weakSection;
   String _rekomendasiPesan = '';
 
-  // Pisahkan weakParts per section untuk ditampilkan di card
-  late List<WeakPartInfo> _listeningParts; // part 1-4
-  late List<WeakPartInfo> _readingParts;   // part 5-7
+  // Threshold skor untuk rekomendasi
+  static const int _threshold = 275;
+  // Total soal rekomendasi
+  static const int _totalSoalRekomendasi = 30;
 
   @override
   void initState() {
     super.initState();
     _feedbackText = widget.motivation;
-    _separatePartsBySection();
     _buildRekomendasi();
     _processResult();
   }
 
-  /// Pisahkan weakParts menjadi listening (1-4) dan reading (5-7)
-  void _separatePartsBySection() {
-    _listeningParts = widget.weakParts
-        .where((p) => p.partId >= 1 && p.partId <= 4)
-        .toList();
-    _readingParts = widget.weakParts
-        .where((p) => p.partId >= 5 && p.partId <= 7)
-        .toList();
-  }
-
-  /// Tentukan part mana saja yang direkomendasikan (accuracy < 60%)
-  /// dan distribusikan 30 soal secara proporsional ke part paling lemah
+  /// Tentukan section mana yang di bawah threshold (≤ 275)
   void _buildRekomendasi() {
-    const double threshold = 60.0;
-    const int totalSoal = 30;
+    final listeningLemah = widget.listeningScore <= _threshold;
+    final readingLemah = widget.readingScore <= _threshold;
 
-    // Filter hanya part dengan accuracy < 60%
-    final weakList = widget.weakParts
-        .where((p) => p.accuracy < threshold)
-        .toList();
-
-    if (weakList.isEmpty) {
-      _recommendedParts = [];
-      _soalPerPartMap = {};
-      _rekomendasiPesan = '';
-      return;
-    }
-
-    _recommendedParts = weakList;
-
-    // Distribusi soal: part paling lemah dapat lebih banyak soal
-    // Gunakan "inverse accuracy" sebagai bobot
-    // Semakin rendah accuracy, semakin besar bobot
-    final Map<int, double> bobotMap = {};
-    double totalBobot = 0;
-    for (final p in weakList) {
-      // Bobot = (100 - accuracy), min 1
-      final bobot = (100.0 - p.accuracy).clamp(1.0, 100.0);
-      bobotMap[p.partId] = bobot;
-      totalBobot += bobot;
-    }
-
-    // Hitung jumlah soal per part (floor dulu, sisanya ke part terlemah)
-    _soalPerPartMap = {};
-    int sisaSoal = totalSoal;
-    final sortedByAccuracy = List<WeakPartInfo>.from(weakList)
-      ..sort((a, b) => a.accuracy.compareTo(b.accuracy));
-
-    for (int i = 0; i < sortedByAccuracy.length; i++) {
-      final p = sortedByAccuracy[i];
-      if (i == sortedByAccuracy.length - 1) {
-        // Part terakhir (terlemah) dapat sisa soal
-        _soalPerPartMap[p.partId] = sisaSoal;
-      } else {
-        final porsi = ((bobotMap[p.partId]! / totalBobot) * totalSoal).floor();
-        final jumlah = porsi.clamp(1, sisaSoal - (sortedByAccuracy.length - 1 - i));
-        _soalPerPartMap[p.partId] = jumlah;
-        sisaSoal -= jumlah;
-      }
-    }
-
-    // Buat pesan rekomendasi
-    final namaPartList = weakList.map((p) => p.partName).toList();
-    String namaGabung;
-    if (namaPartList.length == 1) {
-      namaGabung = namaPartList.first;
+    if (listeningLemah && readingLemah) {
+      _weakSection = WeakSection.keduanya;
+      _rekomendasiPesan =
+          'Skor Listening dan Reading kamu masih di bawah 275. '
+          'Kerjakan rekomendasi latihan untuk meningkatkan kemampuanmu.';
+    } else if (listeningLemah) {
+      _weakSection = WeakSection.listening;
+      _rekomendasiPesan =
+          'Skor Listening kamu masih di bawah 275. '
+          'Kerjakan rekomendasi latihan untuk meningkatkan kemampuanmu.';
+    } else if (readingLemah) {
+      _weakSection = WeakSection.reading;
+      _rekomendasiPesan =
+          'Skor Reading kamu masih di bawah 275. '
+          'Kerjakan rekomendasi latihan untuk meningkatkan kemampuanmu.';
     } else {
-      final semuaKecualiTerakhir = namaPartList.sublist(0, namaPartList.length - 1);
-      namaGabung = '${semuaKecualiTerakhir.join(', ')} dan ${namaPartList.last}';
+      _weakSection = null;
+      _rekomendasiPesan = '';
     }
-
-    _rekomendasiPesan =
-        'Persentase benar Anda pada $namaGabung masih di bawah 60%, silahkan kerjakan rekomendasi latihan.';
   }
 
   Future<void> _processResult() async {
     final session = await UserSession.get();
     _currentLevel = session?['skill_level'] ?? 'beginner';
 
-    // Naik level jika skor >= 500
-    if (widget.totalScore >= 500) {
+    // Naik level jika skor >= 550
+    if (widget.totalScore >= 550) {
       _newLevel = _getNextLevel(_currentLevel);
       _levelUp = _newLevel != _currentLevel;
       if (_levelUp) await _updateLevel(_newLevel, session);
@@ -240,18 +163,11 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
       MaterialPageRoute(
         builder: (_) => RekomendasiLatihanScreen(
           userId: widget.userId,
-          weakParts: _recommendedParts,
-          soalPerPartMap: _soalPerPartMap,
+          weakSection: _weakSection!,
+          totalSoal: _totalSoalRekomendasi,
         ),
       ),
     );
-  }
-
-  /// Warna indikator akurasi per part
-  Color _getAccuracyColor(double accuracy) {
-    if (accuracy >= 80) return Colors.green[600]!;
-    if (accuracy >= 60) return Colors.orange[600]!;
-    return Colors.red[600]!;
   }
 
   @override
@@ -273,7 +189,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
     }
 
     final displayLevel = _levelUp ? _newLevel : _currentLevel;
-    final bool butuhRekomendasi = _recommendedParts.isNotEmpty;
+    final bool butuhRekomendasi = _weakSection != null;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -326,7 +242,7 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Badge level (naik atau tetap)
+                    // Badge level
                     _levelUp
                         ? Container(
                             padding: const EdgeInsets.symmetric(
@@ -390,26 +306,31 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
 
               const SizedBox(height: 12),
 
-              // ── Card Listening ───────────────────────────
-              _buildScoreCardWithParts(
-                icon: Icons.headphones_outlined,
-                iconColor: Colors.blue[400]!,
-                label: 'Listening',
-                score: widget.listeningScore,
-                maxScore: 495,
-                partList: _listeningParts,
-              ),
-
-              const SizedBox(height: 12),
-
-              // ── Card Reading ─────────────────────────────
-              _buildScoreCardWithParts(
-                icon: Icons.menu_book_outlined,
-                iconColor: Colors.teal[400]!,
-                label: 'Reading',
-                score: widget.readingScore,
-                maxScore: 495,
-                partList: _readingParts,
+              // ── Card Listening & Reading (berdampingan) ──
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildScoreCard(
+                      icon: Icons.headphones_outlined,
+                      iconColor: Colors.blue[400]!,
+                      label: 'Listening',
+                      score: widget.listeningScore,
+                      maxScore: 495,
+                      isWeak: widget.listeningScore <= _threshold,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildScoreCard(
+                      icon: Icons.menu_book_outlined,
+                      iconColor: Colors.teal[400]!,
+                      label: 'Reading',
+                      score: widget.readingScore,
+                      maxScore: 495,
+                      isWeak: widget.readingScore <= _threshold,
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 12),
@@ -461,7 +382,6 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
                       color: Colors.white,
                       height: 1.5,
                     ),
-                    textAlign: TextAlign.left,
                   ),
                 ),
               ],
@@ -549,14 +469,14 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
     );
   }
 
-  /// Card Listening/Reading dengan breakdown persentase per part di bawahnya
-  Widget _buildScoreCardWithParts({
+  /// Card skor simpel — hanya ikon, label, dan angka skor
+  Widget _buildScoreCard({
     required IconData icon,
     required Color iconColor,
     required String label,
     required int score,
     required int maxScore,
-    required List<WeakPartInfo> partList,
+    required bool isWeak,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -570,124 +490,46 @@ class _SimulasiResultScreenState extends State<SimulasiResultScreen> {
             offset: const Offset(0, 2),
           ),
         ],
+        // Border merah tipis jika skor di bawah threshold
+        border: isWeak
+            ? Border.all(color: Colors.red[200]!, width: 1.5)
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Baris atas: ikon + label + skor
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(icon, color: iconColor, size: 20),
-              const SizedBox(width: 8),
+              Icon(icon, color: iconColor, size: 18),
+              const SizedBox(width: 6),
               Text(
                 label,
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
-              const Spacer(),
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$score',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    TextSpan(
-                      text: '/$maxScore',
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
+              if (isWeak) ...[
+                const Spacer(),
+                Icon(Icons.warning_amber_rounded,
+                    color: Colors.orange[400], size: 16),
+              ],
             ],
           ),
-
-          // Breakdown per part (jika ada data)
-          if (partList.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 10),
-            ...partList.map((p) => _buildPartAccuracyRow(p)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Baris persentase benar per part dengan progress bar mini
-  Widget _buildPartAccuracyRow(WeakPartInfo p) {
-    final accuracyInt = p.accuracy.round();
-    final color = _getAccuracyColor(p.accuracy);
-    final isWeak = p.accuracy < 60;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // Nama part
-              Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      p.partName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (isWeak) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red[50],
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.red[200]!),
-                        ),
-                        child: Text(
-                          'Lemah',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.red[600],
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+          const SizedBox(height: 10),
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '$score',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: isWeak ? Colors.red[400] : Colors.black87,
+                  ),
                 ),
-              ),
-              // Persentase
-              Text(
-                '$accuracyInt%',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+                TextSpan(
+                  text: '/$maxScore',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // Progress bar mini
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: p.accuracy / 100,
-              minHeight: 5,
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(color),
+              ],
             ),
           ),
         ],
