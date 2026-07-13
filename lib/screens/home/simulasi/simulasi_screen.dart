@@ -23,7 +23,6 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   bool _isPlaying = false;
   bool _isLoadingAudio = false;
   String? _currentAudioFile;
-  bool _audioAlreadyPlayed = false;
 
   final Set<String> _playedAudios = {};
 
@@ -41,7 +40,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   @override
   void initState() {
     super.initState();
-    _soalFuture = _fetchSoal();
+    _initSoalFuture();
     _startTimer();
 
     _audioPlayer.onPlayerComplete.listen((event) {
@@ -51,7 +50,6 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
       }
       setState(() {
         _isPlaying = false;
-        _audioAlreadyPlayed = true;
         _currentAudioFile = null;
         _isLoadingAudio = false;
       });
@@ -92,6 +90,14 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   }
 
   int? _attemptId;
+
+  void _initSoalFuture() {
+    _soalFuture = _fetchSoal();
+    _soalFuture.then((soalList) {
+      if (!mounted || soalList.isEmpty) return;
+      _autoPlayAudio(soalList[_currentIndex]);
+    });
+  }
 
   Future<List<LatihanSoalModel>> _fetchSoal() async {
     final session = await UserSession.get();
@@ -327,29 +333,54 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   }
 
   Future<void> _toggleAudio(String audioFile) async {
+    // Audio yang sudah pernah selesai diputar tidak boleh diputar ulang.
     if (_playedAudios.contains(audioFile)) return;
-    if (_audioAlreadyPlayed) return;
 
     if (_currentAudioFile != audioFile) {
-      await _audioPlayer.stop();
-      _currentAudioFile = audioFile;
-      setState(() => _isLoadingAudio = true);
-      try {
-        await _audioPlayer.setSourceUrl(
-          '${ApiService.mediaBaseUrl}/$audioFile',
-        );
-        await _audioPlayer.resume();
-        setState(() => _isLoadingAudio = false);
-      } catch (e) {
-        setState(() => _isLoadingAudio = false);
-      }
+      // Fallback jika audio belum sempat dimuat oleh autoplay.
+      await _playAudioFile(audioFile);
       return;
     }
 
     if (_isPlaying) {
       await _audioPlayer.pause();
+      if (!mounted) return;
       setState(() => _isPlaying = false);
+    } else {
+      await _audioPlayer.resume();
     }
+  }
+
+  /// Memuat lalu memutar audio dari awal untuk [audioFile].
+  Future<void> _playAudioFile(String audioFile) async {
+    await _audioPlayer.stop();
+    _currentAudioFile = audioFile;
+    if (!mounted) return;
+    setState(() => _isLoadingAudio = true);
+    try {
+      await _audioPlayer.setSourceUrl(
+        '${ApiService.mediaBaseUrl}/$audioFile',
+      );
+      await _audioPlayer.resume();
+      if (!mounted) return;
+      setState(() => _isLoadingAudio = false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingAudio = false);
+    }
+  }
+
+  /// Memutar otomatis audio soal saat ini, tanpa perlu menekan tombol play.
+  /// Tidak akan memutar ulang audio yang sudah pernah selesai diputar,
+  /// atau audio yang sedang/sudah dimuat untuk soal ini (mis. soal
+  /// berikutnya berbagi audio yang sama seperti pada Part 3 & 4).
+  Future<void> _autoPlayAudio(LatihanSoalModel soal) async {
+    final audioFile = soal.audioFile;
+    if (audioFile == null || audioFile.isEmpty) return;
+    if (_playedAudios.contains(audioFile)) return;
+    if (_currentAudioFile == audioFile) return;
+
+    await _playAudioFile(audioFile);
   }
 
   Future<void> _goToQuestion(int index, List<LatihanSoalModel> soalList) async {
@@ -370,6 +401,8 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
       _selectedAnswer = _userAnswers[index];
       _showQuestionList = false;
     });
+
+    _autoPlayAudio(targetSoal);
   }
 
   void _openQuestionList(int total) {
@@ -405,6 +438,8 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
         _currentIndex++;
         _selectedAnswer = _userAnswers[_currentIndex];
       });
+
+      _autoPlayAudio(nextSoal);
     }
   }
 
@@ -426,6 +461,8 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
         _currentIndex--;
         _selectedAnswer = _userAnswers[_currentIndex];
       });
+
+      _autoPlayAudio(prevSoal);
     }
   }
 
@@ -480,8 +517,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   Text('Error: ${snapshot.error}', textAlign: TextAlign.center),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () =>
-                        setState(() => _soalFuture = _fetchSoal()),
+                    onPressed: () => setState(_initSoalFuture),
                     child: const Text('Coba Lagi'),
                   ),
                 ],
