@@ -262,8 +262,10 @@ class _RekomendasiLatihanScreenState
   }
 
   // ─── Audio ────────────────────────────────────────────────────────────────
+  // Di rekomendasi latihan, audio boleh diputar berulang kali (tidak dibatasi).
 
   Future<void> _toggleAudio(String audioFile) async {
+    // Audio berbeda dari yang sedang aktif → load dan putar dari awal
     if (_currentAudioFile != audioFile) {
       await _audioPlayer.stop();
       _currentAudioFile = audioFile;
@@ -280,17 +282,32 @@ class _RekomendasiLatihanScreenState
       }
       return;
     }
+
+    // Audio sedang diputar → pause
     if (_isPlaying) {
       await _audioPlayer.pause();
       setState(() => _isPlaying = false);
       return;
     }
+
+    // Audio sudah selesai → stop, load ulang source, putar dari awal
     if (_audioCompleted) {
-      await _audioPlayer.seek(Duration.zero);
-      await _audioPlayer.resume();
       _audioCompleted = false;
+      setState(() => _isLoadingAudio = true);
+      try {
+        await _audioPlayer.stop();
+        await _audioPlayer.setSourceUrl(
+          '${ApiService.mediaBaseUrl}/$audioFile',
+        );
+        await _audioPlayer.resume();
+        setState(() => _isLoadingAudio = false);
+      } catch (_) {
+        setState(() => _isLoadingAudio = false);
+      }
       return;
     }
+
+    // Audio di-pause → lanjutkan
     await _audioPlayer.resume();
   }
 
@@ -621,6 +638,8 @@ class _RekomendasiLatihanScreenState
                                       : Icon(
                                           _isPlaying
                                               ? Icons.pause_circle_filled
+                                              : _audioCompleted
+                                              ? Icons.replay_circle_filled
                                               : Icons.play_circle_filled,
                                           color: const Color(0xFF2563EB),
                                           size: 32,
