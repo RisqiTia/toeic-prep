@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:toeic_prep/screens/home/simulasi/simulasi_screen.dart';
 import 'package:toeic_prep/screens/home/simulasi/simulasi_result_screen.dart'
     show WeakSection;
 import 'package:toeic_prep/screens/home/rekomendasi_latihan_screen.dart';
@@ -89,7 +90,12 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
   bool get _lulus => widget.skorPersen >= _threshold;
   bool get _sudahMaksPercobaan => widget.percobaan >= _maxPercobaan && !_lulus;
 
-  void _cobaUjiUlang() => Navigator.popUntil(context, (r) => r.isFirst);
+  void _cobaUjiUlang() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => SimulasiScreen(userId: widget.userId)),
+    );
+  }
 
   void _kerjakanLagi() {
     Navigator.pushReplacement(
@@ -148,7 +154,10 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Text('👑', style: TextStyle(fontSize: 36)),
+                                  const Text(
+                                    '👑',
+                                    style: TextStyle(fontSize: 36),
+                                  ),
                                   const SizedBox(height: 4),
                                   Text(
                                     '${widget.skorPersen}',
@@ -320,14 +329,13 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () => Navigator.popUntil(
-                                context,
-                                (r) => r.isFirst,
-                              ),
+                              onPressed: () =>
+                                  Navigator.popUntil(context, (r) => r.isFirst),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF2563EB),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
