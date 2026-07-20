@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:toeic_prep/screens/home/simulasi/simulasi_screen.dart';
 import 'package:toeic_prep/screens/home/simulasi/simulasi_result_screen.dart'
     show WeakSection;
 import 'package:toeic_prep/screens/home/rekomendasi_latihan_screen.dart';
+import 'package:toeic_prep/widgets/simulasi_confirm_dialog.dart';
 
 class HasilLatihanScreen extends StatefulWidget {
   final int skorPersen;
@@ -91,9 +91,10 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
   bool get _sudahMaksPercobaan => widget.percobaan >= _maxPercobaan && !_lulus;
 
   void _cobaUjiUlang() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => SimulasiScreen(userId: widget.userId)),
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (_) => const SimulasiConfirmDialog(),
     );
   }
 
