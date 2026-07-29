@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../../services/api_service.dart';
 import '../../services/user_session.dart';
-import 'register_screen.dart';
 import '../../screens/home/beranda.dart';
+
+import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +24,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // ============================================================
+  // INIT
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +36,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadSavedCredentials() async {
     final saved = await UserSession.getSavedCredentials();
+
+    if (!mounted) return;
+
     if (saved != null) {
       setState(() {
         _emailController.text = saved['email'] ?? '';
@@ -45,70 +55,137 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // ============================================================
+  // LOGIN
+  // ============================================================
+
   Future<void> _handleLogin() async {
+    FocusScope.of(context).unfocus();
+
     setState(() => _errorMessage = null);
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    final result = await ApiService.login(
-      email: _emailController.text.trim(),
-      password: _passController.text,
-    );
-
-    setState(() => _isLoading = false);
-
-    if (result['status'] == 'success') {
-      final user = result['user'];
-
-      // Hapus sesi lama dulu sebelum simpan sesi baru
-      await UserSession.clear();
-
-      print(result);
-      print(user);
-      print(user['id']);
-      print(user['id'].runtimeType);
-
-      // Simpan sesi user termasuk foto_profil
-      await UserSession.save(
-        id: int.parse(user['id'].toString()),
-        name: user['name'],
-        email: user['email'],
-        skillLevel: user['skill_level'] ?? 'beginner',
-        rememberMe: _rememberMe,
-        fotoProfil: user['foto_profil'] ?? '',
+    try {
+      final result = await ApiService.login(
+        email: _emailController.text.trim(),
+        password: _passController.text,
       );
-
-      // Simpan atau hapus kredensial berdasarkan checkbox Ingat Saya
-      if (_rememberMe) {
-        await UserSession.saveCredentials(
-          _emailController.text.trim(),
-          _passController.text,
-        );
-      } else {
-        await UserSession.clearCredentials();
-      }
 
       if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => BerandaScreen(
-            userId: int.parse(user['id'].toString()),
-            userName: user['name'],
-            userEmail: user['email'],
-            skillLevel: user['skill_level'] ?? 'beginner',
-            userPhoto: user['foto_profil'] ?? '', // ← tambahan
+
+      setState(() => _isLoading = false);
+
+      if (result['status'] == 'success') {
+        final user = result['user'];
+
+        // Hapus sesi lama
+        await UserSession.clear();
+
+        if (!mounted) return;
+
+        // Simpan sesi user
+        await UserSession.save(
+          id: int.parse(user['id'].toString()),
+          name: user['name'],
+          email: user['email'],
+          skillLevel: user['skill_level'] ?? 'beginner',
+          rememberMe: _rememberMe,
+          fotoProfil: user['foto_profil'] ?? '',
+        );
+
+        // ======================================================
+        // INGAT SAYA
+        // ======================================================
+
+        if (_rememberMe) {
+          await UserSession.saveCredentials(
+            _emailController.text.trim(),
+            _passController.text,
+          );
+        } else {
+          await UserSession.clearCredentials();
+        }
+
+        if (!mounted) return;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BerandaScreen(
+              userId: int.parse(user['id'].toString()),
+              userName: user['name'],
+              userEmail: user['email'],
+              skillLevel: user['skill_level'] ?? 'beginner',
+              userPhoto: user['foto_profil'] ?? '',
+            ),
+          ),
+          (_) => false,
+        );
+
+        return;
+      }
+
+      setState(() {
+        _errorMessage = result['message'] ?? 'Email atau password salah';
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Tidak dapat terhubung ke server.';
+      });
+    }
+  }
+
+  // ============================================================
+  // LUPA PASSWORD
+  // ============================================================
+
+  Future<void> _openForgotPassword() async {
+    FocusScope.of(context).unfocus();
+
+    final email = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ForgotPasswordScreen(
+          initialEmail: _emailController.text.trim(),
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    // Jika user berhasil reset password,
+    // email otomatis dimasukkan ke halaman login.
+    if (email != null && email.isNotEmpty) {
+      await UserSession.clearCredentials();
+
+      if (!mounted) return;
+
+      setState(() {
+        _emailController.text = email;
+        _passController.clear();
+        _rememberMe = false;
+        _errorMessage = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Kata sandi berhasil diubah. Silakan masuk menggunakan kata sandi baru.',
           ),
         ),
-        (_) => false,
-      );
-    } else {
-      setState(
-        () => _errorMessage = result['message'] ?? 'Email atau password salah',
       );
     }
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -122,19 +199,19 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Error Banner ──────────────────────────────
+                // ── Error Banner ─────────────────────────────
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 12),
                   _ErrorBanner(message: _errorMessage!),
                 ],
 
-                const SizedBox(height: 80),
+                const SizedBox(height: 60),
 
-                // ── Logo & Judul ──────────────────────────────
-                const Center(
+                // ── Logo & Judul ─────────────────────────────
+                Center(
                   child: Column(
                     children: [
-                      Text(
+                      const Text(
                         'TOEIC Prep',
                         style: TextStyle(
                           fontSize: 28,
@@ -142,39 +219,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: Color(0xFF1A1A2E),
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Text(
-                        'Persiapan TOEIC Internasional',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF6B7280),
-                        ),
+                        'Masuk untuk melanjutkan pembelajaran',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 48),
+                const SizedBox(height: 40),
 
                 // ── Email ─────────────────────────────────────
                 _FieldLabel(text: 'Email'),
                 const SizedBox(height: 8),
-                TextFormField(
+                _InputField(
                   controller: _emailController,
+                  hint: 'contoh@email.com',
+                  prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF1A1A2E),
-                  ),
+                  enabled: !_isLoading,
                   validator: (v) {
-                    if (v!.trim().isEmpty) return 'Email tidak boleh kosong';
-                    if (!v.contains('@')) return 'Format email tidak valid';
+                    final email = v?.trim() ?? '';
+                    if (email.isEmpty) return 'Email tidak boleh kosong';
+                    if (!email.contains('@') || !email.contains('.')) {
+                      return 'Format email tidak valid';
+                    }
                     return null;
                   },
-                  decoration: _inputDecoration(
-                    hint: 'contoh@email.com',
-                    prefixIcon: Icons.email_outlined,
-                  ),
                 ),
 
                 const SizedBox(height: 16),
@@ -182,72 +254,81 @@ class _LoginScreenState extends State<LoginScreen> {
                 // ── Kata Sandi ────────────────────────────────
                 _FieldLabel(text: 'Kata Sandi'),
                 const SizedBox(height: 8),
-                TextFormField(
+                _InputField(
                   controller: _passController,
+                  hint: '••••••••',
+                  prefixIcon: Icons.lock_outline,
                   obscureText: _obscurePass,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF1A1A2E),
-                  ),
-                  validator: (v) =>
-                      v!.isEmpty ? 'Kata sandi tidak boleh kosong' : null,
-                  decoration: _inputDecoration(
-                    hint: '••••••••',
-                    prefixIcon: Icons.lock_outline,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePass
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: Colors.grey,
-                        size: 20,
-                      ),
-                      onPressed: () =>
-                          setState(() => _obscurePass = !_obscurePass),
+                  enabled: !_isLoading,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) {
+                    if (!_isLoading) _handleLogin();
+                  },
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePass
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: Colors.grey,
                     ),
+                    onPressed: () =>
+                        setState(() => _obscurePass = !_obscurePass),
                   ),
+                  validator: (v) => (v == null || v.isEmpty)
+                      ? 'Kata sandi tidak boleh kosong'
+                      : null,
                 ),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 8),
 
-                // ── Ingat Saya ────────────────────────────────
+                // ── Ingat Saya + Lupa Kata Sandi ───────────────
                 Row(
                   children: [
                     SizedBox(
-                      width: 20,
-                      height: 20,
+                      height: 24,
+                      width: 24,
                       child: Checkbox(
                         value: _rememberMe,
-                        onChanged: (v) =>
-                            setState(() => _rememberMe = v ?? false),
                         activeColor: const Color(0xFF2563EB),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        side: const BorderSide(
-                          color: Color(0xFF9CA3AF),
-                          width: 1.5,
-                        ),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        onChanged: _isLoading
+                            ? null
+                            : (value) =>
+                                setState(() => _rememberMe = value ?? false),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => setState(() => _rememberMe = !_rememberMe),
+                    const Text(
+                      'Ingat Saya',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: _isLoading ? null : _openForgotPassword,
                       child: const Text(
-                        'Ingat Saya',
+                        'Lupa Kata Sandi?',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF374151),
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2563EB),
                         ),
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
 
-                // ── Tombol Masuk ──────────────────────────────
+                // ── Tombol Masuk ───────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -256,6 +337,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: const Color(0xFF93C5FD),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -282,13 +364,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 16),
 
-                // ── Link ke Daftar ────────────────────────────
+                // ── Link ke Daftar ─────────────────────────────
                 Center(
                   child: GestureDetector(
-                    onTap: () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                    ),
+                    onTap: _isLoading
+                        ? null
+                        : () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterScreen(),
+                              ),
+                            ),
                     child: RichText(
                       text: const TextSpan(
                         style: TextStyle(fontSize: 14, color: Colors.black87),
@@ -306,6 +392,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
+
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -313,45 +401,11 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData prefixIcon,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-      prefixIcon: Icon(prefixIcon, color: const Color(0xFF9CA3AF), size: 20),
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: const Color(0xFFF3F4F6),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-    );
-  }
 }
 
-// ── Widget Reusable ───────────────────────────────────────────
+// ════════════════════════════════════════════════════════════
+// Widget Reusable
+// ════════════════════════════════════════════════════════════
 
 class _FieldLabel extends StatelessWidget {
   final String text;
@@ -365,6 +419,78 @@ class _FieldLabel extends StatelessWidget {
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: Color(0xFF1A1A2E),
+      ),
+    );
+  }
+}
+
+class _InputField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData prefixIcon;
+  final bool obscureText;
+  final bool enabled;
+  final Widget? suffixIcon;
+  final TextInputType keyboardType;
+  final TextInputAction? textInputAction;
+  final void Function(String)? onFieldSubmitted;
+  final String? Function(String?)? validator;
+
+  const _InputField({
+    required this.controller,
+    required this.hint,
+    required this.prefixIcon,
+    this.obscureText = false,
+    this.enabled = true,
+    this.suffixIcon,
+    this.keyboardType = TextInputType.text,
+    this.textInputAction,
+    this.onFieldSubmitted,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      enabled: enabled,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
+      validator: validator,
+      style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+        prefixIcon: Icon(prefixIcon, color: Colors.grey[400], size: 20),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: const Color(0xFFF3F4F6),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
     );
   }
