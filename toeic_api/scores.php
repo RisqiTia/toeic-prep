@@ -105,16 +105,16 @@ if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Hitung akurasi per part & urutkan dari yang paling lemah
-        foreach ($partStats as &$ps) {
-            $ps['accuracy'] = $ps['total'] > 0
-                ? round(($ps['correct'] / $ps['total']) * 100, 1)
-                : 0;
-        }
-        unset($ps);
+        // // Hitung akurasi per part & urutkan dari yang paling lemah
+        // foreach ($partStats as &$ps) {
+        //     $ps['accuracy'] = $ps['total'] > 0
+        //         ? round(($ps['correct'] / $ps['total']) * 100, 1)
+        //         : 0;
+        // }
+        // unset($ps);
 
-        uasort($partStats, fn($a, $b) => $a['accuracy'] <=> $b['accuracy']);
-        $weakPartsOrdered = array_values($partStats);
+        // uasort($partStats, fn($a, $b) => $a['accuracy'] <=> $b['accuracy']);
+        // $weakPartsOrdered = array_values($partStats);
 
         // ── HITUNG SKOR DENGAN TABEL KONVERSI ──────────────────
         $stmtConvL = $pdo->prepare("
