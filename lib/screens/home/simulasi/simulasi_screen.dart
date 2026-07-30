@@ -484,6 +484,68 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
   bool _hasImagePart(int partId) => partId == 1;
   bool _hideOptionTextPart(int partId) => partId == 1 || partId == 2;
 
+  /// Mengubah teks mentah (yang mungkin masih mengandung sintaks markdown
+  /// sederhana seperti **bold** atau bullet "*   item") dari hasil generate
+  /// AI menjadi daftar [InlineSpan] siap pakai di RichText, tanpa
+  /// menampilkan tanda ** / * secara literal ke pengguna.
+  List<InlineSpan> _parseFormattedText(String raw, TextStyle baseStyle) {
+    // Jaga-jaga jika di data masih ada karakter escape literal "\n"
+    // (backslash + n) alih-alih baris baru sungguhan.
+    final normalized = raw.replaceAll(r'\n', '\n');
+    final lines = normalized.split('\n');
+
+    final spans = <InlineSpan>[];
+    final boldRegex = RegExp(r'\*\*(.+?)\*\*');
+
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i];
+
+      // Deteksi baris bullet markdown: "*   teks" / "- teks" -> "•  teks"
+      final bulletMatch = RegExp(r'^\s*[\*\-]\s+(.*)$').firstMatch(line);
+      if (bulletMatch != null) {
+        line = bulletMatch.group(1) ?? '';
+        spans.add(TextSpan(text: '•  ', style: baseStyle));
+      }
+
+      int lastEnd = 0;
+      for (final match in boldRegex.allMatches(line)) {
+        if (match.start > lastEnd) {
+          spans.add(TextSpan(
+            text: line.substring(lastEnd, match.start),
+            style: baseStyle,
+          ));
+        }
+        spans.add(TextSpan(
+          text: match.group(1),
+          style: baseStyle.copyWith(fontWeight: FontWeight.bold),
+        ));
+        lastEnd = match.end;
+      }
+      if (lastEnd < line.length) {
+        spans.add(TextSpan(text: line.substring(lastEnd), style: baseStyle));
+      }
+
+      if (i != lines.length - 1) {
+        spans.add(const TextSpan(text: '\n'));
+      }
+    }
+
+    return spans;
+  }
+
+  /// Widget teks yang otomatis merender **bold** dan bullet list dari
+  /// sintaks markdown sederhana, dipakai untuk soal maupun pilihan jawaban.
+  Widget _formattedText(String raw, TextStyle style) {
+    final baseStyle = Theme.of(context).textTheme.bodyMedium!.merge(style);
+
+    return RichText(
+      text: TextSpan(
+        style: baseStyle,
+        children: _parseFormattedText(raw, baseStyle),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -875,9 +937,9 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                             soal.questionText.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 16),
-                            child: Text(
+                            child: _formattedText(
                               soal.questionText,
-                              style: const TextStyle(
+                              const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black87,
@@ -946,9 +1008,9 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                                   if (!hideText) ...[
                                     const SizedBox(width: 12),
                                     Expanded(
-                                      child: Text(
+                                      child: _formattedText(
                                         text,
-                                        style: const TextStyle(
+                                        const TextStyle(
                                           fontSize: 14,
                                           color: Colors.black87,
                                         ),

@@ -47,6 +47,84 @@ class _LatihanSoalState extends State<LatihanSoal> {
   bool get _hasImage => widget.partId == 1;
   bool get _hideOptionText => widget.partId == 1 || widget.partId == 2;
 
+  // ===================== MARKDOWN FORMATTER =====================
+
+  List<InlineSpan> _parseFormattedText(String raw, TextStyle baseStyle) {
+    final normalized = raw.replaceAll(r'\n', '\n');
+    final lines = normalized.split('\n');
+
+    final spans = <InlineSpan>[];
+    final boldRegex = RegExp(r'\*\*(.+?)\*\*');
+
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i];
+
+      final bulletMatch =
+          RegExp(r'^\s*[\*\-]\s+(.*)$').firstMatch(line);
+
+      if (bulletMatch != null) {
+        line = bulletMatch.group(1) ?? '';
+        spans.add(TextSpan(
+          text: '• ',
+          style: baseStyle,
+        ));
+      }
+
+      int lastEnd = 0;
+
+      for (final match in boldRegex.allMatches(line)) {
+        if (match.start > lastEnd) {
+          spans.add(
+            TextSpan(
+              text: line.substring(lastEnd, match.start),
+              style: baseStyle,
+            ),
+          );
+        }
+
+        spans.add(
+          TextSpan(
+            text: match.group(1),
+            style: baseStyle.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
+
+        lastEnd = match.end;
+      }
+
+      if (lastEnd < line.length) {
+        spans.add(
+          TextSpan(
+            text: line.substring(lastEnd),
+            style: baseStyle,
+          ),
+        );
+      }
+
+      if (i != lines.length - 1) {
+        spans.add(const TextSpan(text: '\n'));
+      }
+    }
+
+    return spans;
+  }
+
+  Widget _formattedText(String raw, TextStyle style) {
+    final textStyle = Theme.of(context)
+        .textTheme
+        .bodyMedium!
+        .merge(style);
+
+    return RichText(
+      text: TextSpan(
+        style: textStyle,
+        children: _parseFormattedText(raw, textStyle),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -861,9 +939,9 @@ class _LatihanSoalState extends State<LatihanSoal> {
                         if (!_hideOptionText && soal.questionText.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 16),
-                            child: Text(
+                            child: _formattedText(
                               soal.questionText,
-                              style: const TextStyle(
+                              const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black87,
@@ -936,9 +1014,9 @@ class _LatihanSoalState extends State<LatihanSoal> {
                                       if (!_hideOptionText) ...[
                                         const SizedBox(width: 12),
                                         Expanded(
-                                          child: Text(
+                                          child: _formattedText(
                                             text,
-                                            style: const TextStyle(
+                                            const TextStyle(
                                               fontSize: 14,
                                               color: Colors.black87,
                                             ),
