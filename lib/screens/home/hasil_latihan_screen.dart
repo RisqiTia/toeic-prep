@@ -155,7 +155,10 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Text('👑', style: TextStyle(fontSize: 36)),
+                                  const Text(
+                                    '👑',
+                                    style: TextStyle(fontSize: 36),
+                                  ),
                                   const SizedBox(height: 4),
                                   Text(
                                     '${widget.skorPersen}',
@@ -327,14 +330,13 @@ class _HasilLatihanScreenState extends State<HasilLatihanScreen>
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () => Navigator.popUntil(
-                                context,
-                                (r) => r.isFirst,
-                              ),
+                              onPressed: () =>
+                                  Navigator.popUntil(context, (r) => r.isFirst),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF2563EB),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
