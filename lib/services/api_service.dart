@@ -26,15 +26,10 @@ class ApiService {
   // HELPER RESPONSE
   // ============================================================
 
-  static Map<String, dynamic> _decodeResponse(
-    http.Response response,
-  ) {
+  static Map<String, dynamic> _decodeResponse(http.Response response) {
     try {
       if (response.body.trim().isEmpty) {
-        return {
-          'status': 'error',
-          'message': 'Respons server kosong.',
-        };
+        return {'status': 'error', 'message': 'Respons server kosong.'};
       }
 
       final dynamic data = jsonDecode(response.body);
@@ -48,10 +43,7 @@ class ApiService {
         'message': 'Format respons server tidak valid.',
       };
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Respons server tidak valid.',
-      };
+      return {'status': 'error', 'message': 'Respons server tidak valid.'};
     }
   }
 
@@ -66,12 +58,8 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=register',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        Uri.parse('$apiBaseUrl/auth.php?action=register'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': name.trim(),
           'email': email.trim(),
@@ -81,10 +69,7 @@ class ApiService {
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Tidak dapat terhubung ke server.',
-      };
+      return {'status': 'error', 'message': 'Tidak dapat terhubung ke server.'};
     }
   }
 
@@ -98,24 +83,14 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=login',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email.trim(),
-          'password': password,
-        }),
+        Uri.parse('$apiBaseUrl/auth.php?action=login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email.trim(), 'password': password}),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Tidak dapat terhubung ke server.',
-      };
+      return {'status': 'error', 'message': 'Tidak dapat terhubung ke server.'};
     }
   }
 
@@ -127,29 +102,19 @@ class ApiService {
   ///
   /// Endpoint:
   /// auth.php?action=forgot_password
-  static Future<Map<String, dynamic>>
-      requestPasswordReset({
+  static Future<Map<String, dynamic>> requestPasswordReset({
     required String email,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=forgot_password',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email.trim(),
-        }),
+        Uri.parse('$apiBaseUrl/auth.php?action=forgot_password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email.trim()}),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Tidak dapat terhubung ke server.',
-      };
+      return {'status': 'error', 'message': 'Tidak dapat terhubung ke server.'};
     }
   }
 
@@ -163,29 +128,19 @@ class ApiService {
   ///
   /// Endpoint:
   /// auth.php?action=check_reset_status
-  static Future<Map<String, dynamic>>
-      checkPasswordResetStatus({
+  static Future<Map<String, dynamic>> checkPasswordResetStatus({
     required String email,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=check_reset_status',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email.trim(),
-        }),
+        Uri.parse('$apiBaseUrl/auth.php?action=check_reset_status'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email.trim()}),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Tidak dapat terhubung ke server.',
-      };
+      return {'status': 'error', 'message': 'Tidak dapat terhubung ke server.'};
     }
   }
 
@@ -194,31 +149,20 @@ class ApiService {
   ///
   /// Endpoint:
   /// auth.php?action=complete_password_reset
-  static Future<Map<String, dynamic>>
-      completePasswordReset({
+  static Future<Map<String, dynamic>> completePasswordReset({
     required String email,
     required String newPassword,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=complete_password_reset',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email.trim(),
-          'new_password': newPassword,
-        }),
+        Uri.parse('$apiBaseUrl/auth.php?action=complete_password_reset'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email.trim(), 'new_password': newPassword}),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Tidak dapat terhubung ke server.',
-      };
+      return {'status': 'error', 'message': 'Tidak dapat terhubung ke server.'};
     }
   }
 
@@ -232,24 +176,14 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=update_skill',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email.trim(),
-          'skill_level': skillLevel,
-        }),
+        Uri.parse('$apiBaseUrl/auth.php?action=update_skill'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email.trim(), 'skill_level': skillLevel}),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Tidak bisa terhubung ke server.',
-      };
+      return {'status': 'error', 'message': 'Tidak bisa terhubung ke server.'};
     }
   }
 
@@ -263,24 +197,14 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=update_name',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'user_id': userId,
-          'name': newName.trim(),
-        }),
+        Uri.parse('$apiBaseUrl/auth.php?action=update_name'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId, 'name': newName.trim()}),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Gagal memperbarui nama.',
-      };
+      return {'status': 'error', 'message': 'Gagal memperbarui nama.'};
     }
   }
 
@@ -298,12 +222,8 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=update_password',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        Uri.parse('$apiBaseUrl/auth.php?action=update_password'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': userId,
           'old_password': oldPassword,
@@ -313,10 +233,7 @@ class ApiService {
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Gagal mengubah kata sandi.',
-      };
+      return {'status': 'error', 'message': 'Gagal mengubah kata sandi.'};
     }
   }
 
@@ -324,43 +241,29 @@ class ApiService {
   // UPDATE FOTO PROFIL
   // ============================================================
 
-  static Future<Map<String, dynamic>>
-      updateProfilePhoto({
+  static Future<Map<String, dynamic>> updateProfilePhoto({
     required int userId,
     required File imageFile,
   }) async {
     try {
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=update_photo',
-        ),
+        Uri.parse('$apiBaseUrl/auth.php?action=update_photo'),
       );
 
-      request.fields['user_id'] =
-          userId.toString();
+      request.fields['user_id'] = userId.toString();
 
       request.files.add(
-        await http.MultipartFile.fromPath(
-          'foto',
-          imageFile.path,
-        ),
+        await http.MultipartFile.fromPath('foto', imageFile.path),
       );
 
-      final streamedResponse =
-          await request.send();
+      final streamedResponse = await request.send();
 
-      final response =
-          await http.Response.fromStream(
-        streamedResponse,
-      );
+      final response = await http.Response.fromStream(streamedResponse);
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Gagal mengunggah foto.',
-      };
+      return {'status': 'error', 'message': 'Gagal mengunggah foto.'};
     }
   }
 
@@ -368,29 +271,19 @@ class ApiService {
   // HAPUS FOTO PROFIL
   // ============================================================
 
-  static Future<Map<String, dynamic>>
-      deleteProfilePhoto({
+  static Future<Map<String, dynamic>> deleteProfilePhoto({
     required int userId,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/auth.php?action=delete_photo',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'user_id': userId,
-        }),
+        Uri.parse('$apiBaseUrl/auth.php?action=delete_photo'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': userId}),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Gagal menghapus foto.',
-      };
+      return {'status': 'error', 'message': 'Gagal menghapus foto.'};
     }
   }
 
@@ -398,22 +291,15 @@ class ApiService {
   // MATERI - DAFTAR PART
   // ============================================================
 
-  static Future<Map<String, dynamic>>
-      getParts() async {
+  static Future<Map<String, dynamic>> getParts() async {
     try {
       final response = await http.get(
-        Uri.parse(
-          '$apiBaseUrl/materials.php?action=parts',
-        ),
+        Uri.parse('$apiBaseUrl/materials.php?action=parts'),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message':
-            'Gagal mengambil daftar part',
-      };
+      return {'status': 'error', 'message': 'Gagal mengambil daftar part'};
     }
   }
 
@@ -421,23 +307,15 @@ class ApiService {
   // MATERI BERDASARKAN PART
   // ============================================================
 
-  static Future<Map<String, dynamic>>
-      getMaterialsByPart(
-    int partId,
-  ) async {
+  static Future<Map<String, dynamic>> getMaterialsByPart(int partId) async {
     try {
       final response = await http.get(
-        Uri.parse(
-          '$apiBaseUrl/materials.php?action=by_part&part_id=$partId',
-        ),
+        Uri.parse('$apiBaseUrl/materials.php?action=by_part&part_id=$partId'),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Gagal mengambil materi',
-      };
+      return {'status': 'error', 'message': 'Gagal mengambil materi'};
     }
   }
 
@@ -445,24 +323,15 @@ class ApiService {
   // SOAL PRACTICE
   // ============================================================
 
-  static Future<Map<String, dynamic>>
-      getPracticeQuestions(
-    int partId,
-  ) async {
+  static Future<Map<String, dynamic>> getPracticeQuestions(int partId) async {
     try {
       final response = await http.get(
-        Uri.parse(
-          '$apiBaseUrl/questions.php?action=practice&part_id=$partId',
-        ),
+        Uri.parse('$apiBaseUrl/questions.php?action=practice&part_id=$partId'),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message':
-            'Gagal mengambil soal practice',
-      };
+      return {'status': 'error', 'message': 'Gagal mengambil soal practice'};
     }
   }
 
@@ -470,22 +339,15 @@ class ApiService {
   // SOAL SIMULASI
   // ============================================================
 
-  static Future<Map<String, dynamic>>
-      getSimulationQuestions() async {
+  static Future<Map<String, dynamic>> getSimulationQuestions() async {
     try {
       final response = await http.get(
-        Uri.parse(
-          '$apiBaseUrl/questions.php?action=simulation',
-        ),
+        Uri.parse('$apiBaseUrl/questions.php?action=simulation'),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message':
-            'Gagal mengambil soal simulasi',
-      };
+      return {'status': 'error', 'message': 'Gagal mengambil soal simulasi'};
     }
   }
 
@@ -493,20 +355,15 @@ class ApiService {
   // SIMPAN SKOR SIMULASI
   // ============================================================
 
-  static Future<Map<String, dynamic>>
-      saveSimulationScore({
+  static Future<Map<String, dynamic>> saveSimulationScore({
     required int userId,
     required int listeningScore,
     required int readingScore,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse(
-          '$apiBaseUrl/scores.php?action=save_simulation',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        Uri.parse('$apiBaseUrl/scores.php?action=save_simulation'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'user_id': userId,
           'listening_score': listeningScore,
@@ -516,10 +373,7 @@ class ApiService {
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message': 'Gagal menyimpan skor',
-      };
+      return {'status': 'error', 'message': 'Gagal menyimpan skor'};
     }
   }
 
@@ -527,24 +381,15 @@ class ApiService {
   // RIWAYAT SKOR
   // ============================================================
 
-  static Future<Map<String, dynamic>>
-      getScoreHistory(
-    int userId,
-  ) async {
+  static Future<Map<String, dynamic>> getScoreHistory(int userId) async {
     try {
       final response = await http.get(
-        Uri.parse(
-          '$apiBaseUrl/scores.php?action=history&user_id=$userId',
-        ),
+        Uri.parse('$apiBaseUrl/scores.php?action=history&user_id=$userId'),
       );
 
       return _decodeResponse(response);
     } catch (e) {
-      return {
-        'status': 'error',
-        'message':
-            'Gagal mengambil riwayat skor',
-      };
+      return {'status': 'error', 'message': 'Gagal mengambil riwayat skor'};
     }
   }
 }

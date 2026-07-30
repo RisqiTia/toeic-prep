@@ -14,8 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $host     = "localhost";
 $dbname   = "toeicpre_toeic_prep_db1";   // <-- nama database baru
-$username = "toeicpre_toeicpre";
-$password = "toeicprep12345";
+$username = "toeicpre_toeicta";
+$password = "Toeic12345*";
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
