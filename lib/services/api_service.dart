@@ -9,7 +9,7 @@ class ApiService {
   // ============================================================
 
   // Hosting
-  static const String apiBaseUrl = 'https://toeic-prep.my.id/api/';
+  static const String apiBaseUrl = 'https://toeic-prep.my.id/api';
 
   static const String mediaBaseUrl = 'https://toeic-prep.my.id/asset_generator';
 
