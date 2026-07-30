@@ -9,18 +9,18 @@ class ApiService {
   // ============================================================
 
   // Hosting
-  // static const String apiBaseUrl =
-  //     'https://toeic-prep.my.id/api/';
-  //
-  // static const String mediaBaseUrl =
-  //     'https://toeic-prep.my.id/asset_generator';
+  static const String apiBaseUrl =
+      'https://toeic-prep.my.id/api/';
+  
+  static const String mediaBaseUrl =
+      'https://toeic-prep.my.id/asset_generator';
 
   // Local
-  static const String apiBaseUrl =
-      'http://10.206.78.156/toeic_prep_app/toeic_api';
+  // static const String apiBaseUrl =
+  //     'http://10.206.78.156/toeic_prep_app/toeic_api';
 
-  static const String mediaBaseUrl =
-      'http://10.206.78.156/toeic_dataset_generator';
+  // static const String mediaBaseUrl =
+  //     'http://10.206.78.156/toeic_dataset_generator';
 
   // ============================================================
   // HELPER RESPONSE
