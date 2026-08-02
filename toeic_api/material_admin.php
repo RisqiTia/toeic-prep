@@ -58,11 +58,11 @@ if ($action === 'generate') {
     // ========================================================
 
     $generatorDir =
-        'C:\\xampp\\htdocs\\toeic_dataset_generator';
+        'C:/laragon/www/Toeic_Dataset_Generator';
 
     $scriptPath =
         $generatorDir .
-        '\\generate_material_admin.py';
+        '/generate_material_admin.py';
 
 
     if (!file_exists($scriptPath)) {
